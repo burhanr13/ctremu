@@ -1,0 +1,17 @@
+.vscode
+
+*.bin
+*.bin.*
+*.elf
+
+roms
+build
+*.log
+log*
+*.fs
+
+ctremu*
+
+perf*
+
+.DS_Store
