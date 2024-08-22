@@ -701,7 +701,7 @@ void optimize_blocklinking(IRBlock* block, ArmCore* cpu) {
             case IR_MODESWITCH:
             case IR_EXCEPTION:
             case IR_WFE:
-            case IR_WRITE_CP:
+            case IR_WRITE_CP15:
                 can_link = false;
                 break;
             case IR_END_RET:

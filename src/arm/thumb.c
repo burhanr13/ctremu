@@ -285,7 +285,7 @@ ArmInstr thumb_decode_instr(ThumbInstr instr) {
                 dec.branch.offset = offset;
             } else {
                 dec.sw_intr.c1 = 0b1111;
-                dec.sw_intr.arg = instr.swi.arg << 16;
+                dec.sw_intr.arg = instr.swi.arg;
             }
             break;
         case 14:

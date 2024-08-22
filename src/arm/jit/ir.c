@@ -11,7 +11,7 @@ bool iropc_hasresult(IROpcode opc) {
         case IR_LOAD_CPSR:
         case IR_LOAD_SPSR:
         case IR_LOAD_THUMB:
-        case IR_READ_CP:
+        case IR_READ_CP15:
         case IR_LOAD_MEM8:
         case IR_LOAD_MEMS8:
         case IR_LOAD_MEM16:
@@ -25,8 +25,8 @@ bool iropc_hasresult(IROpcode opc) {
 
 bool iropc_iscallback(IROpcode opc) {
     switch (opc) {
-        case IR_READ_CP:
-        case IR_WRITE_CP:
+        case IR_READ_CP15:
+        case IR_WRITE_CP15:
         case IR_LOAD_MEM8:
         case IR_LOAD_MEMS8:
         case IR_LOAD_MEM16:
@@ -137,7 +137,7 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
             case IR_STORE_THUMB:
                 cpu->cpsr.t = OP(2);
                 break;
-            case IR_READ_CP: {
+            case IR_READ_CP15: {
                 ArmInstr cpinst = {OP(1)};
                 if (cpinst.cp_reg_trans.cpnum == 15) {
                     v[i] = cpu->cp15_read(cpu, cpinst.cp_reg_trans.crn,
@@ -146,7 +146,7 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
                 }
                 break;
             }
-            case IR_WRITE_CP: {
+            case IR_WRITE_CP15: {
                 ArmInstr cpinst = {OP(1)};
                 if (cpinst.cp_reg_trans.cpnum == 15) {
                     cpu->cp15_write(cpu, cpinst.cp_reg_trans.crn,
@@ -335,7 +335,7 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
             case IR_EXCEPTION:
                 switch (OP(1)) {
                     case E_SWI:
-                        cpu->handle_svc(cpu, (OP(2) >> 16) & 0xff);
+                        cpu->handle_svc(cpu, (ArmInstr){OP(2)}.sw_intr.arg);
                         break;
                     case E_UND:
                         cpu_undefined_fail(cpu, OP(2));
@@ -453,11 +453,11 @@ void ir_disasm_instr(IRInstr inst, int i) {
             DISASM(load_thumb, 1, 0, 0);
         case IR_STORE_THUMB:
             DISASM(store_thumb, 0, 0, 1);
-        case IR_READ_CP:
-            DISASM(read_cp, 1, 1, 0);
+        case IR_READ_CP15:
+            DISASM(READ_CP15, 1, 1, 0);
             break;
-        case IR_WRITE_CP:
-            DISASM(write_cp, 0, 1, 1);
+        case IR_WRITE_CP15:
+            DISASM(WRITE_CP15, 0, 1, 1);
             break;
         case IR_LOAD_MEM8:
             DISASM_MEM(load_mem8, 1, 0);

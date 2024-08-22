@@ -4,6 +4,7 @@
 
 #include "3ds.h"
 #include "arm/jit/jit.h"
+#include "svc.h"
 
 void cpu_init(CPU* cpu) {
     memset(cpu, 0, sizeof *cpu);
@@ -28,6 +29,9 @@ void cpu_free(CPU* cpu) {
 void cpu_run(CPU* cpu, int cycles) {
     cpu->c.cycles = cycles;
     while (cpu->c.cycles > 0) {
+#ifdef CPULOG
+        linfo("executing at %08x", cpu->c.cur_instr_addr);
+#endif
         arm_exec_jit((ArmCore*) cpu);
     }
 }
@@ -70,14 +74,38 @@ u32 cpu_fetch32(CPU* cpu, u32 addr) {
 }
 
 void cpu_handle_svc(CPU* cpu, u32 num) {
-    n3ds_os_svc(cpu->master, num);
+    n3ds_handle_svc(cpu->master, num);
 }
 
 u32 cp15_read(CPU* cpu, u32 cn, u32 cm, u32 cp) {
-    eprintf("unknown cp15 read: %d,%d,%d\n", cn, cm, cp);
+    switch (cn) {
+        case 13:
+            switch (cm) {
+                case 0:
+                    switch (cp) {
+                        case 3:
+                            return TLS_BASE;
+                    }
+                    break;
+            }
+            break;
+    }
+    lwarn("unknown cp15 read: %d,%d,%d", cn, cm, cp);
     return 0;
 }
 
 void cp15_write(CPU* cpu, u32 cn, u32 cm, u32 cp, u32 data) {
-    eprintf("unknown cp15 write: %d,%d,%d\n", cn, cm, cp);
+    switch (cn) {
+        case 13:
+            switch (cm) {
+                case 0:
+                    switch (cp) {
+                        case 3:
+                            return;
+                    }
+                    break;
+            }
+            break;
+    }
+    lwarn("unknown cp15 write: %d,%d,%d", cn, cm, cp);
 }

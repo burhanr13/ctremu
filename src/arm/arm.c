@@ -43,6 +43,10 @@ ArmInstrFormat arm_decode_instr(ArmInstr instr) {
         return ARM_SWINTR;
     } else if (instr.cp_reg_trans.c1 == 0b1110 && instr.cp_reg_trans.c2 == 1) {
         return ARM_CPREGTRANS;
+    } else if (instr.cp_data_proc.c1 == 0b1110 && instr.cp_reg_trans.c2 == 0) {
+        return ARM_CPDATAPROC;
+    } else if (instr.cp_data_trans.c1 == 0b110) {
+        return ARM_CPDATATRANS;
     } else if (instr.branch.c1 == 0b101) {
         return ARM_BRANCH;
     } else if (instr.block_trans.c1 == 0b100) {

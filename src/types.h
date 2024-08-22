@@ -5,8 +5,24 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define eprintf(format, ...) fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__)
+
+#define _STRINGIFY(x) #x
+#define STRINGIFY(x) _STRINGIFY(x)
+#define LOC_STRING __FILE__ ":" STRINGIFY(__LINE__)
+
+#define linfo(format, ...)                                                     \
+    printf("\e[32m[INFO](" LOC_STRING ") " format "\e[0m\n" __VA_OPT__(, )     \
+               __VA_ARGS__)
+#define lwarn(format, ...)                                                     \
+    eprintf("\e[33m[WARNING](" LOC_STRING ") " format "\e[0m\n" __VA_OPT__(, ) \
+                __VA_ARGS__)
+#define lerror(format, ...)                                                    \
+    eprintf("\e[31m[ERROR](" LOC_STRING ") " format "\e[0m\n" __VA_OPT__(, )   \
+                __VA_ARGS__)
 
 typedef uint8_t u8;
 typedef int8_t s8;

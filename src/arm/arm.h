@@ -229,6 +229,30 @@ typedef union {
         u32 cond : 4;
     } branch;
     struct {
+        u32 offset : 8;
+        u32 cpnum : 4;
+        u32 crd : 4;
+        u32 rn : 4;
+        u32 l : 1;
+        u32 w : 1;
+        u32 n : 1;
+        u32 u : 1;
+        u32 p : 1;
+        u32 c1 : 3; // 110
+        u32 cond : 4;
+    } cp_data_trans;
+    struct {
+        u32 crm : 4;
+        u32 c2 : 1; // 0
+        u32 cp : 3;
+        u32 cpnum : 4;
+        u32 crd : 4;
+        u32 crn : 4;
+        u32 cpopc : 4;
+        u32 c1 : 4; // 1110
+        u32 cond : 4;
+    } cp_data_proc;
+    struct {
         u32 crm : 4;
         u32 c2 : 1; // 1
         u32 cp : 3;
@@ -262,6 +286,8 @@ typedef enum {
     ARM_UNDEFINED,
     ARM_BLOCKTRANS,
     ARM_BRANCH,
+    ARM_CPDATATRANS,
+    ARM_CPDATAPROC,
     ARM_CPREGTRANS,
     ARM_SWINTR,
 

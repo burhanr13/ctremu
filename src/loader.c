@@ -26,9 +26,7 @@ u32 load_elf(N3DS* system, char* filename) {
     }
     for (int i = 0; i < ehdr.e_phnum; i++) {
         if (phdrs[i].p_type != PT_LOAD) continue;
-        void* segment =
-            mmap(&system->memory[phdrs[i].p_vaddr], phdrs[i].p_memsz,
-                 PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+        void* segment = n3ds_mmap(system, phdrs[i].p_vaddr, phdrs[i].p_memsz);
         fseek(fp, phdrs[i].p_offset, SEEK_SET);
         if (fread(segment, 1, phdrs[i].p_filesz, fp) < phdrs[i].p_filesz) {
             fclose(fp);
@@ -39,8 +37,8 @@ u32 load_elf(N3DS* system, char* filename) {
         if (phdrs[i].p_flags & PF_R) prot |= PROT_READ;
         if (phdrs[i].p_flags & PF_W) prot |= PROT_WRITE;
         mprotect(segment, phdrs[i].p_memsz, prot);
-        
-        printf("loaded elf segment at %08x\n", phdrs[i].p_vaddr);
+
+        linfo("loaded elf segment at %08x", phdrs[i].p_vaddr);
     }
     free(phdrs);
 

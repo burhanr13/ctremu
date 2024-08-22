@@ -219,7 +219,7 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 }
                 break;
             }
-            case IR_READ_CP: {
+            case IR_READ_CP15: {
                 ArmInstr cpinst = {inst.op1};
                 mov(rdi, rbx);
                 mov(esi, cpinst.cp_reg_trans.crn);
@@ -230,7 +230,7 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 mov(getOp(i), eax);
                 break;
             }
-            case IR_WRITE_CP: {
+            case IR_WRITE_CP15: {
                 if (inst.imm2) {
                     mov(r8d, inst.op2);
                 } else {
@@ -861,7 +861,7 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 mov(rdi, rbx);
                 switch (inst.op1) {
                     case E_SWI:
-                        mov(esi, (inst.op2 >> 16) & 0xff);
+                        mov(esi, (ArmInstr){inst.op2}.sw_intr.arg);
                         mov(rax, (u64) cpu->handle_svc);
                         call(rax);
                         break;

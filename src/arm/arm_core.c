@@ -91,7 +91,7 @@ void cpu_update_mode(ArmCore* cpu, CpuMode old) {
         case M_SYSTEM:
             return;
         default:
-            eprintf("illegal cpu mode %x (pc = %08x)\n", cpu->cpsr.m, cpu->pc);
+            lwarn("illegal cpu mode %x (pc = %08x)", cpu->cpsr.m, cpu->pc);
     }
 }
 
@@ -136,7 +136,7 @@ void cpu_handle_exception(ArmCore* cpu, CpuException intr) {
 }
 
 void cpu_undefined_fail(ArmCore* cpu, u32 instr) {
-    eprintf("undefined instruction %08x near %08x\n", instr, cpu->pc);
+    lerror("executing undefined instruction %08x near %08x", instr, cpu->pc);
     exit(1);
 }
 
