@@ -599,7 +599,8 @@ DECL_ARM_COMPILE(half_trans) {
         EMITVX(SUB, vaddr, voffset, immoffset);
     }
     u32 vwback = LASTV;
-    if (instr.half_trans.p) vaddr = vwback;
+    if (instr.half_trans.p && (instr.half_trans.h || instr.half_trans.s))
+        vaddr = vwback;
 
     if (instr.half_trans.s) {
         if (instr.half_trans.l) {
@@ -662,7 +663,18 @@ DECL_ARM_COMPILE(half_trans) {
             }
             return true;
         }
-    } else return false;
+    } else {
+        if (instr.half_trans.l) {
+            EMITV0(LOAD_MEM32, vaddr);
+            EMITV_STORE_REG(instr.half_trans.rd, LASTV);
+            return true;
+        } else {
+            EMIT_LOAD_REG(instr.half_trans.offlo, true);
+            EMITVV(STORE_MEM32, vaddr, LASTV);
+            EMITI_STORE_REG(instr.half_trans.rd, 0);
+            return true;
+        }
+    }
 }
 
 DECL_ARM_COMPILE(single_trans) {
