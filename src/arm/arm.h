@@ -205,9 +205,23 @@ typedef union {
         u32 cond : 4;
     } single_trans;
     struct {
-        u32 u2 : 4;
+        u32 rm : 4;
         u32 c2 : 1; // 1
-        u32 u1 : 20;
+        u32 p : 1;
+        u32 x : 1;
+        u32 shift : 5;
+        u32 rd : 4;
+        u32 rn : 4;
+        u32 h : 1;
+        u32 s : 1;
+        u32 u : 1;
+        u32 c1 : 5; // 01101
+        u32 cond : 4;
+    } pack_sat;
+    struct {
+        u32 u2 : 4;
+        u32 c2 : 4; // 1111
+        u32 u1 : 17;
         u32 c1 : 3; // 011
         u32 cond : 4;
     } undefined;
@@ -283,6 +297,7 @@ typedef enum {
     ARM_SATARITH,
     ARM_HALFTRANS,
     ARM_SINGLETRANS,
+    ARM_PACKSAT,
     ARM_UNDEFINED,
     ARM_BLOCKTRANS,
     ARM_BRANCH,

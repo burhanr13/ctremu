@@ -13,7 +13,8 @@ ArmCompileFunc compile_funcs[ARM_MAX] = {
     [ARM_SWAP] = compile_arm_swap,
     [ARM_BRANCHEXCH] = compile_arm_branch_exch,
     [ARM_LEADINGZEROS] = compile_arm_leading_zeros,
-    [ARM_SATARITH] = compile_arm_undefined,
+    [ARM_SATARITH] = compile_arm_sat_arith,
+    [ARM_PACKSAT] = compile_arm_pack_sat,
     [ARM_HALFTRANS] = compile_arm_half_trans,
     [ARM_SINGLETRANS] = compile_arm_single_trans,
     [ARM_UNDEFINED] = compile_arm_undefined,
@@ -49,9 +50,8 @@ ArmCompileFunc compile_funcs[ARM_MAX] = {
 #define EMITII(opc, op1, op2) EMITXX(opc, op1, op2, 1, 1)
 #define EMIT00(opc) EMITXX(opc, 0, 0, 1, 1)
 
-#define EMIT_LOAD_REG(rn, fetched)                                             \
-    (rn == 15 ? EMIT0I(MOV, addr + (fetched ? 3 * INSTRLEN : 2 * INSTRLEN))    \
-              : EMITI0(LOAD_REG, rn))
+#define EMIT_LOAD_REG(rn)                                                      \
+    (rn == 15 ? EMIT0I(MOV, addr + 2 * INSTRLEN) : EMITI0(LOAD_REG, rn))
 #define EMITX_STORE_REG(rn, op, imm) EMITIX(STORE_REG, rn, op, imm)
 #define EMITV_STORE_REG(rn, op) EMITX_STORE_REG(rn, op, 0)
 #define EMITI_STORE_REG(rn, op) EMITX_STORE_REG(rn, op, 1)
@@ -233,7 +233,7 @@ DECL_ARM_COMPILE(data_proc) {
                 op2 = (op2 >> shift_amt) | (op2 << (32 - shift_amt));
             }
         }
-        if (usingop1) op1 = EMIT_LOAD_REG(instr.data_proc.rn, false);
+        if (usingop1) op1 = EMIT_LOAD_REG(instr.data_proc.rn);
     } else {
         u32 rm = instr.data_proc.op2 & 0b1111;
         u32 shift = instr.data_proc.op2 >> 4;
@@ -242,11 +242,11 @@ DECL_ARM_COMPILE(data_proc) {
         u32 shamt;
         bool immshift = !(shift & 1);
         if (shift & 1) {
-            if (usingop1) op1 = EMIT_LOAD_REG(instr.data_proc.rn, true);
-            op2 = EMIT_LOAD_REG(rm, true);
+            if (usingop1) op1 = EMIT_LOAD_REG(instr.data_proc.rn);
+            op2 = EMIT_LOAD_REG(rm);
 
             u32 rs = shift >> 4;
-            EMIT_LOAD_REG(rs, true);
+            EMIT_LOAD_REG(rs);
             shamt = EMITVI(AND, LASTV, 0xff);
             if (instr.data_proc.s) {
                 op2 = compile_shifter(block, cpu, shift_type, op2, shamt,
@@ -259,8 +259,8 @@ DECL_ARM_COMPILE(data_proc) {
                                       immshift, NULL);
             }
         } else {
-            if (usingop1) op1 = EMIT_LOAD_REG(instr.data_proc.rn, false);
-            op2 = EMIT_LOAD_REG(rm, false);
+            if (usingop1) op1 = EMIT_LOAD_REG(instr.data_proc.rn);
+            op2 = EMIT_LOAD_REG(rm);
 
             shamt = shift >> 3;
             op2 = compile_shifter(block, cpu, shift_type, op2, shamt, immshift,
@@ -396,7 +396,7 @@ DECL_ARM_COMPILE(psr_trans) {
             op2 = (op2 >> rot) | (op2 << (32 - rot));
         } else {
             u32 rm = instr.psr_trans.op2 & 0b1111;
-            op2 = EMIT_LOAD_REG(rm, false);
+            op2 = EMIT_LOAD_REG(rm);
         }
         u32 mask = 0;
         if (instr.psr_trans.f) mask |= 0xff000000;
@@ -441,11 +441,11 @@ DECL_ARM_COMPILE(psr_trans) {
 }
 
 DECL_ARM_COMPILE(multiply) {
-    u32 op1 = EMIT_LOAD_REG(instr.multiply.rm, true);
-    u32 op2 = EMIT_LOAD_REG(instr.multiply.rs, true);
+    u32 op1 = EMIT_LOAD_REG(instr.multiply.rm);
+    u32 op2 = EMIT_LOAD_REG(instr.multiply.rs);
     u32 vres = EMITVV(MUL, op1, op2);
     if (instr.multiply.a) {
-        EMIT_LOAD_REG(instr.multiply.rn, true);
+        EMIT_LOAD_REG(instr.multiply.rn);
         vres = EMITVV(ADD, vres, LASTV);
     }
     if (instr.multiply.s) {
@@ -459,8 +459,8 @@ DECL_ARM_COMPILE(multiply) {
 }
 
 DECL_ARM_COMPILE(multiply_long) {
-    u32 op1 = EMIT_LOAD_REG(instr.multiply_long.rm, true);
-    u32 op2 = EMIT_LOAD_REG(instr.multiply_long.rs, true);
+    u32 op1 = EMIT_LOAD_REG(instr.multiply_long.rm);
+    u32 op2 = EMIT_LOAD_REG(instr.multiply_long.rs);
     u32 vreslo = EMITVV(MUL, op1, op2);
     u32 vreshi;
     if (instr.multiply_long.u) {
@@ -469,8 +469,8 @@ DECL_ARM_COMPILE(multiply_long) {
         vreshi = EMITVV(UMULH, op1, op2);
     }
     if (instr.multiply_long.a) {
-        u32 aclo = EMIT_LOAD_REG(instr.multiply_long.rdlo, true);
-        u32 achi = EMIT_LOAD_REG(instr.multiply_long.rdhi, true);
+        u32 aclo = EMIT_LOAD_REG(instr.multiply_long.rdlo);
+        u32 achi = EMIT_LOAD_REG(instr.multiply_long.rdhi);
 
         vreslo = EMITVV(ADD, vreslo, aclo);
         vreshi = EMITVV(ADC, vreshi, achi);
@@ -490,11 +490,11 @@ DECL_ARM_COMPILE(multiply_long) {
 
 DECL_ARM_COMPILE(multiply_short) {
 
-    u32 vop1 = EMIT_LOAD_REG(instr.multiply_short.rs, true);
+    u32 vop1 = EMIT_LOAD_REG(instr.multiply_short.rs);
     if (!instr.multiply_short.y) vop1 = EMITVI(LSL, vop1, 16);
     vop1 = EMITVI(ASR, vop1, 16);
 
-    u32 vop2 = EMIT_LOAD_REG(instr.multiply_short.rm, true);
+    u32 vop2 = EMIT_LOAD_REG(instr.multiply_short.rm);
     if (instr.multiply_short.op != 0b01) {
         if (!instr.multiply_short.x) vop2 = EMITVI(LSL, vop2, 16);
         vop2 = EMITVI(ASR, vop2, 16);
@@ -503,7 +503,7 @@ DECL_ARM_COMPILE(multiply_short) {
     switch (instr.multiply_short.op) {
         case 0: {
             u32 vres = EMITVV(MUL, vop1, vop2);
-            EMIT_LOAD_REG(instr.multiply_short.rn, true);
+            EMIT_LOAD_REG(instr.multiply_short.rn);
             vres = EMITVV(ADD, vres, LASTV);
             // if (res > INT32_MAX || res < INT32_MIN) {
             //     cpu->cpsr.q = 1;
@@ -514,7 +514,7 @@ DECL_ARM_COMPILE(multiply_short) {
         case 1:
             u32 vres = EMITVV(SMULW, vop1, vop2);
             if (!instr.multiply_short.x) {
-                EMIT_LOAD_REG(instr.multiply_short.rn, true);
+                EMIT_LOAD_REG(instr.multiply_short.rn);
                 vres = EMITVV(ADD, vres, LASTV);
                 // if (res > INT32_MAX || res < INT32_MIN) {
                 //     cpu->cpsr.q = 1;
@@ -525,8 +525,8 @@ DECL_ARM_COMPILE(multiply_short) {
         case 2: {
             u32 vres = EMITVV(MUL, vop1, vop2);
             u32 vsx = EMITVI(ASR, vres, 31);
-            u32 vrn = EMIT_LOAD_REG(instr.multiply_short.rn, true);
-            u32 vrd = EMIT_LOAD_REG(instr.multiply_short.rd, true);
+            u32 vrn = EMIT_LOAD_REG(instr.multiply_short.rn);
+            u32 vrd = EMIT_LOAD_REG(instr.multiply_short.rd);
             u32 vareslo = EMITVV(ADD, vrn, vres);
             u32 vareshi = EMITVV(ADC, vrd, vsx);
             EMITV_STORE_REG(instr.multiply_short.rn, vareslo);
@@ -542,15 +542,15 @@ DECL_ARM_COMPILE(multiply_short) {
 }
 
 DECL_ARM_COMPILE(swap) {
-    u32 vaddr = EMIT_LOAD_REG(instr.swap.rn, false);
+    u32 vaddr = EMIT_LOAD_REG(instr.swap.rn);
     if (instr.swap.b) {
         u32 vdata = EMITV0(LOAD_MEM8, vaddr);
-        EMIT_LOAD_REG(instr.swap.rm, true);
+        EMIT_LOAD_REG(instr.swap.rm);
         EMITVV(STORE_MEM8, vaddr, LASTV);
         EMITV_STORE_REG(instr.swap.rd, vdata);
     } else {
         u32 vdata = EMITV0(LOAD_MEM32, vaddr);
-        EMIT_LOAD_REG(instr.swap.rm, true);
+        EMIT_LOAD_REG(instr.swap.rm);
         EMITVV(STORE_MEM32, vaddr, LASTV);
         EMITV_STORE_REG(instr.swap.rd, vdata);
     }
@@ -558,7 +558,7 @@ DECL_ARM_COMPILE(swap) {
 }
 
 DECL_ARM_COMPILE(branch_exch) {
-    u32 vdest = EMIT_LOAD_REG(instr.branch_exch.rn, false);
+    u32 vdest = EMIT_LOAD_REG(instr.branch_exch.rn);
     if (instr.branch_exch.l) {
         if (cpu->cpsr.t) {
             EMITI_STORE_REG(14, addr + 3);
@@ -577,20 +577,54 @@ DECL_ARM_COMPILE(branch_exch) {
 }
 
 DECL_ARM_COMPILE(leading_zeros) {
-    EMIT_LOAD_REG(instr.leading_zeros.rm, false);
+    EMIT_LOAD_REG(instr.leading_zeros.rm);
     EMIT0V(CLZ, LASTV);
     EMITV_STORE_REG(instr.leading_zeros.rd, LASTV);
     return true;
 }
 
+DECL_ARM_COMPILE(sat_arith) {
+    lwarn("unimpl sat_arith");
+    return true;
+}
+
+DECL_ARM_COMPILE(pack_sat) {
+    if (!instr.pack_sat.p) {
+        lwarn("umimpl sat");
+    } else if (instr.pack_sat.x) {
+        if (instr.pack_sat.s) {
+            EMIT_LOAD_REG(instr.pack_sat.rm);
+            if (instr.pack_sat.shift) EMITVI(ROR, LASTV, instr.pack_sat.shift);
+            u32 ext = instr.pack_sat.h ? 16 : 24;
+            EMITVI(LSL, LASTV, ext);
+            if (instr.pack_sat.u) {
+                EMITVI(LSR, LASTV, ext);
+            } else {
+                EMITVI(ASR, LASTV, ext);
+            }
+            if (instr.pack_sat.rn != 15) {
+                u32 vres = LASTV;
+                EMIT_LOAD_REG(instr.pack_sat.rn);
+                EMITVV(ADD, vres, LASTV);
+            }
+            EMITV_STORE_REG(instr.pack_sat.rd, LASTV);
+        } else {
+            lwarn("unimpl xt16");
+        }
+    } else {
+        lwarn("unimpl pack");
+    }
+    return true;
+}
+
 DECL_ARM_COMPILE(half_trans) {
-    u32 vaddr = EMIT_LOAD_REG(instr.half_trans.rn, false);
+    u32 vaddr = EMIT_LOAD_REG(instr.half_trans.rn);
     u32 voffset;
     u32 immoffset = instr.half_trans.i;
     if (instr.half_trans.i) {
         voffset = instr.half_trans.offlo | (instr.half_trans.offhi << 4);
     } else {
-        voffset = EMIT_LOAD_REG(instr.half_trans.offlo, false);
+        voffset = EMIT_LOAD_REG(instr.half_trans.offlo);
     }
 
     if (instr.half_trans.u) {
@@ -622,10 +656,10 @@ DECL_ARM_COMPILE(half_trans) {
         } else {
             vaddr = EMITVI(AND, vaddr, ~3);
             if (instr.half_trans.h) {
-                EMIT_LOAD_REG(instr.half_trans.rd, true);
+                EMIT_LOAD_REG(instr.half_trans.rd);
                 EMITVV(STORE_MEM32, vaddr, LASTV);
                 vaddr = EMITVI(ADD, vaddr, 4);
-                EMIT_LOAD_REG(instr.half_trans.rd + 1, true);
+                EMIT_LOAD_REG(instr.half_trans.rd + 1);
                 EMITVV(STORE_MEM32, vaddr, LASTV);
                 if (instr.half_trans.w || !instr.half_trans.p) {
                     EMITV_STORE_REG(instr.half_trans.rn, vwback);
@@ -656,7 +690,7 @@ DECL_ARM_COMPILE(half_trans) {
             }
             return true;
         } else {
-            EMIT_LOAD_REG(instr.half_trans.rd, true);
+            EMIT_LOAD_REG(instr.half_trans.rd);
             EMITVV(STORE_MEM16, vaddr, LASTV);
             if (instr.half_trans.w || !instr.half_trans.p) {
                 EMITV_STORE_REG(instr.half_trans.rn, vwback);
@@ -669,7 +703,7 @@ DECL_ARM_COMPILE(half_trans) {
             EMITV_STORE_REG(instr.half_trans.rd, LASTV);
             return true;
         } else {
-            EMIT_LOAD_REG(instr.half_trans.offlo, true);
+            EMIT_LOAD_REG(instr.half_trans.offlo);
             EMITVV(STORE_MEM32, vaddr, LASTV);
             EMITI_STORE_REG(instr.half_trans.rd, 0);
             return true;
@@ -682,7 +716,7 @@ DECL_ARM_COMPILE(single_trans) {
         return true;
     }
 
-    u32 vaddr = EMIT_LOAD_REG(instr.single_trans.rn, false);
+    u32 vaddr = EMIT_LOAD_REG(instr.single_trans.rn);
     if (instr.single_trans.rn == 15 && cpu->cpsr.t) {
         vaddr = EMITVI(AND, vaddr, ~3);
     }
@@ -690,7 +724,7 @@ DECL_ARM_COMPILE(single_trans) {
     u32 immoffset = !instr.single_trans.i;
     if (instr.single_trans.i) {
         u32 rm = instr.single_trans.offset & 0b1111;
-        voffset = EMIT_LOAD_REG(rm, false);
+        voffset = EMIT_LOAD_REG(rm);
         u8 shift = instr.single_trans.offset >> 4;
         u8 shamt = shift >> 3;
         u8 op = (shift >> 1) & 3;
@@ -721,7 +755,7 @@ DECL_ARM_COMPILE(single_trans) {
             }
             return true;
         } else {
-            EMIT_LOAD_REG(instr.single_trans.rd, true);
+            EMIT_LOAD_REG(instr.single_trans.rd);
             EMITVV(STORE_MEM8, vaddr, LASTV);
             if (instr.single_trans.w || !instr.single_trans.p) {
                 EMITV_STORE_REG(instr.single_trans.rn, vwback);
@@ -747,7 +781,7 @@ DECL_ARM_COMPILE(single_trans) {
             }
             return true;
         } else {
-            EMIT_LOAD_REG(instr.single_trans.rd, true);
+            EMIT_LOAD_REG(instr.single_trans.rd);
             EMITVV(STORE_MEM32, vaddr, LASTV);
             if (instr.single_trans.w || !instr.single_trans.p) {
                 EMITV_STORE_REG(instr.single_trans.rn, vwback);
@@ -769,7 +803,7 @@ bool needs_user_reg_op(u32 mode, int reg) {
 DECL_ARM_COMPILE(block_trans) {
     int rcount = 0;
     int rlist[16];
-    u32 vaddr = EMIT_LOAD_REG(instr.block_trans.rn, false);
+    u32 vaddr = EMIT_LOAD_REG(instr.block_trans.rn);
     u32 wboff;
     if (instr.block_trans.rlist) {
         for (int i = 0; i < 16; i++) {
@@ -812,7 +846,7 @@ DECL_ARM_COMPILE(block_trans) {
             for (int i = 0; i < rcount; i++) {
                 if (needs_user_reg_op(cpu->cpsr.m, rlist[i]))
                     EMITI0(LOAD_REG_USR, rlist[i]);
-                else EMIT_LOAD_REG(rlist[i], true);
+                else EMIT_LOAD_REG(rlist[i]);
                 EMITVV(STORE_MEM32, vaddr, LASTV);
                 vaddr = EMITVI(ADD, vaddr, 4);
             }
@@ -861,7 +895,7 @@ DECL_ARM_COMPILE(block_trans) {
             return true;
         } else {
             for (int i = 0; i < rcount; i++) {
-                EMIT_LOAD_REG(rlist[i], true);
+                EMIT_LOAD_REG(rlist[i]);
                 EMITVV(STORE_MEM32, vaddr, LASTV);
                 vaddr = EMITVI(ADD, vaddr, 4);
             }
@@ -882,7 +916,7 @@ DECL_ARM_COMPILE(branch) {
         if (cpu->cpsr.t) {
             if (offset & BIT(23)) {
                 offset %= BIT(23);
-                EMIT_LOAD_REG(14, false);
+                EMIT_LOAD_REG(14);
                 u32 vdest = EMITVI(ADD, LASTV, offset);
                 EMITI_STORE_REG(14, addr + 3);
                 if (instr.cond == 0xf) {
@@ -917,7 +951,7 @@ DECL_ARM_COMPILE(branch) {
 
 DECL_ARM_COMPILE(cp_data_trans) {
     if ((instr.cp_data_trans.cpnum & ~1) == 10) {
-        lwarn("vfp instr %08x", instr.w);
+        lwarn("unimpl vfp instr %08x", instr.w);
     } else {
         lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
@@ -926,7 +960,7 @@ DECL_ARM_COMPILE(cp_data_trans) {
 
 DECL_ARM_COMPILE(cp_data_proc) {
     if ((instr.cp_data_proc.cpnum & ~1) == 10) {
-        lwarn("vfp instr %08x", instr.w);
+        lwarn("unimpl vfp instr %08x", instr.w);
     } else {
         lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
@@ -935,14 +969,14 @@ DECL_ARM_COMPILE(cp_data_proc) {
 
 DECL_ARM_COMPILE(cp_reg_trans) {
     if ((instr.cp_reg_trans.cpnum & ~1) == 10) {
-        lwarn("vfp instr %08x", instr.w);
+        lwarn("unimpl vfp instr %08x", instr.w);
     } else if (instr.cp_reg_trans.cpnum == 15 &&
                instr.cp_reg_trans.cpopc == 0) {
         if (instr.cp_reg_trans.l) {
             EMITI0(READ_CP15, instr.w);
             EMITV_STORE_REG(instr.cp_reg_trans.rd, LASTV);
         } else {
-            EMIT_LOAD_REG(instr.cp_reg_trans.rd, true);
+            EMIT_LOAD_REG(instr.cp_reg_trans.rd);
             EMITIV(WRITE_CP15, instr.w, LASTV);
             return false;
         }
@@ -953,13 +987,8 @@ DECL_ARM_COMPILE(cp_reg_trans) {
 }
 
 DECL_ARM_COMPILE(undefined) {
-    lwarn("undefined instruction %08x at %08x", instr.w, addr);
-
-    EMIT_UPDATE_PC();
-    EMITII(EXCEPTION, E_UND, instr.w);
-    EMITI_STORE_REG(15, addr + INSTRLEN);
-    EMIT00(END_RET);
-    return false;
+    lerror("undefined instruction %08x at %08x", instr.w, addr);
+    return true;
 }
 
 DECL_ARM_COMPILE(sw_intr) {

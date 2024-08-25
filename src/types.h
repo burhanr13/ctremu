@@ -10,18 +10,14 @@
 
 #define eprintf(format, ...) fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__)
 
-#define _STRINGIFY(x) #x
-#define STRINGIFY(x) _STRINGIFY(x)
-#define LOC_STRING __FILE__ ":" STRINGIFY(__LINE__)
-
 #define linfo(format, ...)                                                     \
-    printf("\e[32m[INFO](" LOC_STRING ") " format "\e[0m\n" __VA_OPT__(, )     \
+    printf("\e[32m[INFO](%s) " format "\e[0m\n", __func__ __VA_OPT__(, )     \
                __VA_ARGS__)
 #define lwarn(format, ...)                                                     \
-    eprintf("\e[33m[WARNING](" LOC_STRING ") " format "\e[0m\n" __VA_OPT__(, ) \
+    eprintf("\e[33m[WARNING](%s) " format "\e[0m\n", __func__ __VA_OPT__(, ) \
                 __VA_ARGS__)
 #define lerror(format, ...)                                                    \
-    eprintf("\e[31m[ERROR](" LOC_STRING ") " format "\e[0m\n" __VA_OPT__(, )   \
+    eprintf("\e[31m[ERROR](%s) " format "\e[0m\n", __func__ __VA_OPT__(, )   \
                 __VA_ARGS__)
 
 typedef uint8_t u8;

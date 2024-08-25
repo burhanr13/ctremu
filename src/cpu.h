@@ -4,12 +4,12 @@
 #include "arm/arm_core.h"
 #include "types.h"
 
-typedef struct _3DS N3DS;
+typedef struct _3DS X3DS;
 
 typedef struct {
     ArmCore c;
 
-    N3DS* master;
+    X3DS* master;
 } CPU;
 
 void cpu_init(CPU* cpu);

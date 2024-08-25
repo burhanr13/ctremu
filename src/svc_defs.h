@@ -14,4 +14,6 @@ enum {
     RES_MEMORY = 1,
 };
 
+#define IPC_CMD_OFF 0x80
+
 #endif

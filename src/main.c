@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 
         if (!(ctremu.pause)) {
             do {
-                n3ds_run_frame(&ctremu.system);
+                x3ds_run_frame(&ctremu.system);
                 frame++;
 
                 cur_time = SDL_GetPerformanceCounter();

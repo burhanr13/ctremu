@@ -15,14 +15,14 @@ void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     u8* addr = info->si_addr;
     if (ctremu.system.memory <= addr &&
         addr < ctremu.system.memory + BITL(32)) {
-        lerror("invalid 3DS memory access at %08x (pc near %08x)",
+        lerror("(FATAL) invalid 3DS memory access at %08x (pc near %08x)",
                addr - ctremu.system.memory, ctremu.system.cpu.c.pc);
         exit(1);
     }
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
 }
 
-void n3ds_init(N3DS* system, char* romfile) {
+void x3ds_init(X3DS* system, char* romfile) {
 
     cpu_init(&system->cpu);
     system->cpu.master = system;
@@ -52,9 +52,10 @@ void n3ds_init(N3DS* system, char* romfile) {
         exit(1);
     }
 
-    n3ds_mmap(system, STACK_BASE - STACK_SIZE, STACK_SIZE);
+    x3ds_mmap(system, STACK_BASE - STACK_SIZE, STACK_SIZE);
 
-    n3ds_mmap(system, TLS_BASE, 0x1000);
+    x3ds_mmap(system, CONFIG_MEM, PAGE_SIZE);
+    x3ds_mmap(system, TLS_BASE, PAGE_SIZE);
 
     system->cpu.c.cpsr.m = M_USER;
     system->cpu.c.sp = STACK_BASE;
@@ -62,19 +63,20 @@ void n3ds_init(N3DS* system, char* romfile) {
     cpu_flush((ArmCore*) &system->cpu);
 }
 
-void n3ds_destroy(N3DS* system) {
+void x3ds_destroy(X3DS* system) {
     cpu_free(&system->cpu);
 
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
     munmap(system->memory, BITL(32));
 }
 
-void n3ds_run_frame(N3DS* system) {
+void x3ds_run_frame(X3DS* system) {
     cpu_run(&system->cpu, 20000000);
 }
 
-void* n3ds_mmap(N3DS* system, u32 addr, u32 size) {
-    size = (size + 0xfff) & ~0xfff;
+void* x3ds_mmap(X3DS* system, u32 addr, u32 size) {
+    addr = addr & ~(PAGE_SIZE - 1);
+    size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
     void* ptr = mmap(&system->memory[addr], size, PROT_READ | PROT_WRITE,
                      MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
     if (ptr == MAP_FAILED) {

@@ -51,7 +51,9 @@ ArmInstrFormat arm_decode_instr(ArmInstr instr) {
         return ARM_BRANCH;
     } else if (instr.block_trans.c1 == 0b100) {
         return ARM_BLOCKTRANS;
-    } else if (instr.undefined.c1 == 0b011 && instr.undefined.c2 == 1) {
+    } else if(instr.pack_sat.c1 == 0b01101 && instr.pack_sat.c2 == 1) {
+        return ARM_PACKSAT;
+    } else if (instr.undefined.c1 == 0b011 && instr.undefined.c2 == 0b1111) {
         return ARM_UNDEFINED;
     } else if (instr.single_trans.c1 == 0b01) {
         return ARM_SINGLETRANS;

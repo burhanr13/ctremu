@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-u32 load_elf(N3DS* system, char* filename) {
+u32 load_elf(X3DS* system, char* filename) {
     FILE* fp = fopen(filename, "r");
     if (!fp) {
         eprintf("no such file\n");
@@ -26,7 +26,7 @@ u32 load_elf(N3DS* system, char* filename) {
     }
     for (int i = 0; i < ehdr.e_phnum; i++) {
         if (phdrs[i].p_type != PT_LOAD) continue;
-        void* segment = n3ds_mmap(system, phdrs[i].p_vaddr, phdrs[i].p_memsz);
+        void* segment = x3ds_mmap(system, phdrs[i].p_vaddr, phdrs[i].p_memsz);
         fseek(fp, phdrs[i].p_offset, SEEK_SET);
         if (fread(segment, 1, phdrs[i].p_filesz, fp) < phdrs[i].p_filesz) {
             fclose(fp);

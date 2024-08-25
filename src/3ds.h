@@ -1,5 +1,5 @@
-#ifndef N3DS_H
-#define N3DS_H
+#ifndef X3DS_H
+#define X3DS_H
 
 #include "cpu.h"
 
@@ -11,7 +11,9 @@ typedef struct _3DS {
     u8* memory;
 
     u32 free_memory;
-} N3DS;
+} X3DS;
+
+#define PAGE_SIZE BIT(12)
 
 #define HEAP_BASE BIT(27)
 
@@ -20,15 +22,16 @@ typedef struct _3DS {
 
 #define lINEAR_HEAP_BASE (BIT(28) + BIT(26))
 
+#define CONFIG_MEM 0x1ff80000
 #define TLS_BASE 0x1ff82000
 
-void n3ds_init(N3DS* system, char* romfile);
-void n3ds_destroy(N3DS* system);
+void x3ds_init(X3DS* system, char* romfile);
+void x3ds_destroy(X3DS* system);
 
-void n3ds_run_frame(N3DS* system);
+void x3ds_run_frame(X3DS* system);
 
-void* n3ds_mmap(N3DS* system, u32 addr, u32 size);
+void* x3ds_mmap(X3DS* system, u32 addr, u32 size);
 
-void n3ds_os_svc(N3DS* system, u32 num);
+void x3ds_os_svc(X3DS* system, u32 num);
 
 #endif

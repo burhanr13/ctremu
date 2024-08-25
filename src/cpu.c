@@ -30,7 +30,7 @@ void cpu_run(CPU* cpu, int cycles) {
     cpu->c.cycles = cycles;
     while (cpu->c.cycles > 0) {
 #ifdef CPULOG
-        linfo("executing at %08x", cpu->c.cur_instr_addr);
+        printf("executing at %08x\n", cpu->c.cur_instr_addr);
 #endif
         arm_exec_jit((ArmCore*) cpu);
     }
@@ -74,7 +74,7 @@ u32 cpu_fetch32(CPU* cpu, u32 addr) {
 }
 
 void cpu_handle_svc(CPU* cpu, u32 num) {
-    n3ds_handle_svc(cpu->master, num);
+    x3ds_handle_svc(cpu->master, num);
 }
 
 u32 cp15_read(CPU* cpu, u32 cn, u32 cm, u32 cp) {
@@ -90,12 +90,22 @@ u32 cp15_read(CPU* cpu, u32 cn, u32 cm, u32 cp) {
             }
             break;
     }
-    lwarn("unknown cp15 read: %d,%d,%d", cn, cm, cp);
+    lwarn("unimpl cp15 read: %d,%d,%d", cn, cm, cp);
     return 0;
 }
 
 void cp15_write(CPU* cpu, u32 cn, u32 cm, u32 cp, u32 data) {
     switch (cn) {
+        case 7:
+            switch (cm) {
+                case 10:
+                    switch (cp) {
+                        case 5:
+                            return;
+                    }
+                    break;
+            }
+            break;
         case 13:
             switch (cm) {
                 case 0:
@@ -107,5 +117,5 @@ void cp15_write(CPU* cpu, u32 cn, u32 cm, u32 cp, u32 data) {
             }
             break;
     }
-    lwarn("unknown cp15 write: %d,%d,%d", cn, cm, cp);
+    lwarn("unimpl cp15 write: %d,%d,%d", cn, cm, cp);
 }
