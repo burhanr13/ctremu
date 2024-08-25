@@ -11,6 +11,22 @@ enum {
 };
 
 enum {
+    PERM_R = BIT(0),
+    PERM_W = BIT(1),
+    PERM_X = BIT(2),
+    PERM_RW = PERM_R | PERM_W,
+    PERM_RX = PERM_R | PERM_X,
+};
+
+enum {
+    MEMST_FREE = 0,
+    MEMST_STATIC = 3,
+    MEMST_CODE = 4,
+    MEMST_PRIVATE = 5,
+    MEMST_SHARED = 6,
+};
+
+enum {
     RES_MEMORY = 1,
 };
 

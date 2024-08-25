@@ -6,17 +6,15 @@
 #include "srv.h"
 #include "svc_defs.h"
 
-#define R(n) system->cpu.c.r[n]
-#define PTR(addr) (void*) &system->memory[addr]
-
 void x3ds_handle_svc(X3DS* system, u32 num) {
     num &= 0xff;
     if (!svc_table[num]) {
-        lerror("unimpl svc 0x%x (0x%x,0x%x,0x%x,0x%x) at %08x (lr=%08x)", num,
-               R(0), R(1), R(2), R(3), system->cpu.c.pc, system->cpu.c.lr);
+        lerror("unknown svc 0x%x (0x%x,0x%x,0x%x,0x%x) at %08x (lr=%08x)", num,
+               R(0), R(1), R(2), R(3), system->cpu.pc, system->cpu.lr);
         return;
     }
-    linfo("svc 0x%x (0x%x,0x%x,0x%x,0x%x)", num, R(0), R(1), R(2), R(3));
+    linfo("handling svc 0x%x: %s(0x%x,0x%x,0x%x,0x%x,0x%x)", num,
+          svc_names[num], R(0), R(1), R(2), R(3), R(4));
     svc_table[num](system);
 }
 
@@ -34,13 +32,29 @@ DECL_SVC(ControlMemory) {
     R(0) = 0;
     switch (memop) {
         case MEMOP_ALLOC:
-            x3ds_mmap(system, addr0, size);
+            x3ds_vmalloc(system, addr0, size, perm, MEMST_PRIVATE);
             R(1) = addr0;
             break;
         default:
-            lwarn("unimpl memory op for ControlMemory: %d", memop);
+            lwarn("unknown memory op %d", memop);
             R(0) = -1;
     }
+}
+
+DECL_SVC(QueryMemory) {
+    u32 addr = R(2);
+    VMBlock* b = x3ds_vmquery(system, addr);
+    R(0) = 0;
+    R(1) = b->startpg << 12;
+    R(2) = (b->endpg - b->startpg) << 12;
+    R(3) = b->perm;
+    R(4) = b->state;
+    R(5) = 0;
+}
+
+DECL_SVC(CreateEvent) {
+    R(0) = 0;
+    R(1) = 1;
 }
 
 DECL_SVC(CreateAddressArbiter) {
@@ -57,24 +71,24 @@ DECL_SVC(ConnectToPort) {
     if (!strcmp(port, "srv:")) {
         linfo("connected to port '%s'", port);
         R(0) = 0;
-        R(1) = HANDLE_PORT + SRV_SRV;
+        R(1) = MAKE_HANDLE(HANDLE_SESSION, SRV_SRV);
     } else {
         R(0) = -1;
-        lwarn("unimpl port '%s'", port);
+        lwarn("unknown port '%s'", port);
     }
 }
 
 DECL_SVC(SendSyncRequest) {
+    if (HANDLE_TYPE(R(0)) != HANDLE_SESSION || HANDLE_VAL(R(0)) >= SRV_MAX) {
+        lerror("invalid session handle");
+        R(0) = -1;
+        return;
+    }
     u32 cmd_addr = TLS_BASE + IPC_CMD_OFF;
     IPCHeader cmd = {*(u32*) PTR(cmd_addr)};
-    if (R(0) - HANDLE_PORT < SRV_MAX) {
-        handle_service_request(system, R(0) - HANDLE_PORT, cmd,
-                               TLS_BASE + IPC_CMD_OFF);
-        R(0) = 0;
-    } else {
-        lerror("invalid port handle");
-        R(0) = -1;
-    }
+    handle_service_request(system, HANDLE_VAL(R(0)), cmd,
+                           TLS_BASE + IPC_CMD_OFF);
+    R(0) = 0;
 }
 
 DECL_SVC(GetResourceLimit) {
@@ -93,7 +107,7 @@ DECL_SVC(GetResourceLimitLimitValues) {
                 values[i] = FCRAMSIZE;
                 break;
             default:
-                lwarn("unimpl resource %d", names[i]);
+                lwarn("unknown resource %d", names[i]);
                 R(0) = -1;
         }
     }
@@ -107,10 +121,10 @@ DECL_SVC(GetResourceLimitCurrentValues) {
     for (int i = 0; i < count; i++) {
         switch (names[i]) {
             case RES_MEMORY:
-                values[i] = system->free_memory;
+                values[i] = system->used_memory;
                 break;
             default:
-                lwarn("unimpl resource %d", names[i]);
+                lwarn("unknown resource %d", names[i]);
                 R(0) = -1;
         }
     }
@@ -127,6 +141,7 @@ DECL_SVC(OutputDebugString) {
 
 SVCFunc svc_table[SVC_MAX] = {
     [0x01] = svc_ControlMemory,
+    [0x02] = svc_QueryMemory,
     [0x21] = svc_CreateAddressArbiter,
     [0x23] = svc_CloseHandle,
     [0x2d] = svc_ConnectToPort,
@@ -136,4 +151,19 @@ SVCFunc svc_table[SVC_MAX] = {
     [0x3a] = svc_GetResourceLimitCurrentValues,
     [0x3c] = svc_Break,
     [0x3d] = svc_OutputDebugString,
+};
+
+char* svc_names[SVC_MAX] = {
+    [0x01] = "ControlMemory",
+    [0x02] = "QueryMemory",
+    [0x17] = "CreateEvent",
+    [0x21] = "CreateAddressArbiter",
+    [0x23] = "CloseHandle",
+    [0x2d] = "ConnectToPort",
+    [0x32] = "SendSyncRequest",
+    [0x38] = "GetResourceLimit",
+    [0x39] = "GetResourceLimitLimitValues",
+    [0x3a] = "GetResourceLimitCurrentValues",
+    [0x3c] = "Break",
+    [0x3d] = "OutputDebugString",
 };

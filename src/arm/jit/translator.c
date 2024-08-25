@@ -584,7 +584,7 @@ DECL_ARM_COMPILE(leading_zeros) {
 }
 
 DECL_ARM_COMPILE(sat_arith) {
-    lwarn("unimpl sat_arith");
+    lwarn("unknown sat_arith");
     return true;
 }
 
@@ -609,10 +609,10 @@ DECL_ARM_COMPILE(pack_sat) {
             }
             EMITV_STORE_REG(instr.pack_sat.rd, LASTV);
         } else {
-            lwarn("unimpl xt16");
+            lwarn("unknown xt16");
         }
     } else {
-        lwarn("unimpl pack");
+        lwarn("unknown pack");
     }
     return true;
 }
@@ -951,7 +951,7 @@ DECL_ARM_COMPILE(branch) {
 
 DECL_ARM_COMPILE(cp_data_trans) {
     if ((instr.cp_data_trans.cpnum & ~1) == 10) {
-        lwarn("unimpl vfp instr %08x", instr.w);
+        lwarn("unknown vfp instr %08x", instr.w);
     } else {
         lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
@@ -960,7 +960,7 @@ DECL_ARM_COMPILE(cp_data_trans) {
 
 DECL_ARM_COMPILE(cp_data_proc) {
     if ((instr.cp_data_proc.cpnum & ~1) == 10) {
-        lwarn("unimpl vfp instr %08x", instr.w);
+        lwarn("unknown vfp instr %08x", instr.w);
     } else {
         lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
@@ -969,7 +969,7 @@ DECL_ARM_COMPILE(cp_data_proc) {
 
 DECL_ARM_COMPILE(cp_reg_trans) {
     if ((instr.cp_reg_trans.cpnum & ~1) == 10) {
-        lwarn("unimpl vfp instr %08x", instr.w);
+        lwarn("unknown vfp instr %08x", instr.w);
     } else if (instr.cp_reg_trans.cpnum == 15 &&
                instr.cp_reg_trans.cpopc == 0) {
         if (instr.cp_reg_trans.l) {

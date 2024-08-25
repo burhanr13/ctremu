@@ -5,9 +5,9 @@
 
 #include "svc.h"
 
-#define PTR(addr) (void*) &system->memory[addr]
+#include "services/gsp.h"
 
-SRVFunc srv_funcs[SRV_MAX];
+extern SRVFunc srv_funcs[SRV_MAX];
 
 void handle_service_request(X3DS* system, u32 srv, IPCHeader cmd,
                             u32 cmd_addr) {
@@ -25,9 +25,9 @@ DECL_SRV(srv) {
             cmd_params[1] = 0;
 
             if (!strcmp(name, "gsp::Gpu")) {
-                cmd_params[3] = HANDLE_PORT + SRV_GSP_GPU;
+                cmd_params[3] = MAKE_HANDLE(HANDLE_SESSION, SRV_GSP_GPU);
             } else {
-                lwarn("unimpl service '%s'", name);
+                lwarn("unknown service '%s'", name);
                 cmd_params[1] = -1;
             }
             if (cmd_params[1] == 0) {
@@ -36,16 +36,8 @@ DECL_SRV(srv) {
             break;
         }
         default:
-            lwarn("unimpl command 0x%04x", cmd.command);
+            lwarn("unknown command 0x%04x", cmd.command);
             break;
-    }
-}
-
-DECL_SRV(gsp_gpu) {
-    u32* cmd_params = PTR(cmd_addr);
-    switch (cmd.command) {
-        default:
-            lwarn("unimpl command 0x%04x", cmd.command);
     }
 }
 

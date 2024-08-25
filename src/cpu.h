@@ -1,36 +1,29 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "3ds.h"
 #include "arm/arm_core.h"
 #include "types.h"
 
-typedef struct _3DS X3DS;
+void cpu_init(X3DS* system);
+void cpu_free(X3DS* system);
 
-typedef struct {
-    ArmCore c;
+void cpu_run(X3DS* system, int cycles);
 
-    X3DS* master;
-} CPU;
+u32 cpu_read8(X3DS* system, u32 addr, bool sx);
+u32 cpu_read16(X3DS* system, u32 addr, bool sx);
+u32 cpu_read32(X3DS* system, u32 addr);
 
-void cpu_init(CPU* cpu);
-void cpu_free(CPU* cpu);
+void cpu_write8(X3DS* system, u32 addr, u8 b);
+void cpu_write16(X3DS* system, u32 addr, u16 h);
+void cpu_write32(X3DS* system, u32 addr, u32 w);
 
-void cpu_run(CPU* cpu, int cycles);
+u16 cpu_fetch16(X3DS* system, u32 addr);
+u32 cpu_fetch32(X3DS* system, u32 addr);
 
-u32 cpu_read8(CPU* cpu, u32 addr, bool sx);
-u32 cpu_read16(CPU* cpu, u32 addr, bool sx);
-u32 cpu_read32(CPU* cpu, u32 addr);
+void cpu_handle_svc(X3DS* system, u32 num);
 
-void cpu_write8(CPU* cpu, u32 addr, u8 b);
-void cpu_write16(CPU* cpu, u32 addr, u16 h);
-void cpu_write32(CPU* cpu, u32 addr, u32 w);
-
-u16 cpu_fetch16(CPU* cpu, u32 addr);
-u32 cpu_fetch32(CPU* cpu, u32 addr);
-
-void cpu_handle_svc(CPU* cpu, u32 num);
-
-u32 cp15_read(CPU* cpu, u32 cn, u32 cm, u32 cp);
-void cp15_write(CPU* cpu, u32 cn, u32 cm, u32 cp, u32 data);
+u32 cp15_read(X3DS* system, u32 cn, u32 cm, u32 cp);
+void cp15_write(X3DS* system, u32 cn, u32 cm, u32 cp, u32 data);
 
 #endif

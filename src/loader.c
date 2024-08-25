@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include "svc_defs.h"
+
 u32 load_elf(X3DS* system, char* filename) {
     FILE* fp = fopen(filename, "r");
     if (!fp) {
@@ -26,17 +28,20 @@ u32 load_elf(X3DS* system, char* filename) {
     }
     for (int i = 0; i < ehdr.e_phnum; i++) {
         if (phdrs[i].p_type != PT_LOAD) continue;
-        void* segment = x3ds_mmap(system, phdrs[i].p_vaddr, phdrs[i].p_memsz);
+
+        u32 perm = 0;
+        if (phdrs[i].p_flags & PF_R) perm |= PERM_R;
+        if (phdrs[i].p_flags & PF_W) perm |= PERM_W;
+        if (phdrs[i].p_flags & PF_X) perm |= PERM_X;
+        x3ds_vmalloc(system, phdrs[i].p_vaddr, phdrs[i].p_memsz, perm,
+                     MEMST_CODE);
+        void* segment = PTR(phdrs[i].p_vaddr);
         fseek(fp, phdrs[i].p_offset, SEEK_SET);
         if (fread(segment, 1, phdrs[i].p_filesz, fp) < phdrs[i].p_filesz) {
             fclose(fp);
             free(phdrs);
             return 0;
         }
-        int prot = 0;
-        if (phdrs[i].p_flags & PF_R) prot |= PROT_READ;
-        if (phdrs[i].p_flags & PF_W) prot |= PROT_WRITE;
-        mprotect(segment, phdrs[i].p_memsz, prot);
 
         linfo("loaded elf segment at %08x", phdrs[i].p_vaddr);
     }

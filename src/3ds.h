@@ -1,17 +1,24 @@
-#ifndef X3DS_H
-#define X3DS_H
+#ifndef _3DS_H
+#define _3DS_H
 
-#include "cpu.h"
+#include "arm/arm_core.h"
+#include "memory.h"
+#include "types.h"
 
 #define FCRAMSIZE BIT(17)
 
 typedef struct _3DS {
-    CPU cpu;
+    ArmCore cpu;
 
-    u8* memory;
+    u8* virtmem;
 
-    u32 free_memory;
+    VMBlock vmblocks;
+
+    u32 used_memory;
 } X3DS;
+
+#define R(n) system->cpu.r[n]
+#define PTR(addr) (void*) &system->virtmem[addr]
 
 #define PAGE_SIZE BIT(12)
 
@@ -29,9 +36,5 @@ void x3ds_init(X3DS* system, char* romfile);
 void x3ds_destroy(X3DS* system);
 
 void x3ds_run_frame(X3DS* system);
-
-void* x3ds_mmap(X3DS* system, u32 addr, u32 size);
-
-void x3ds_os_svc(X3DS* system, u32 num);
 
 #endif
