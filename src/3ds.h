@@ -5,7 +5,7 @@
 #include "memory.h"
 #include "types.h"
 
-#define FCRAMSIZE BIT(17)
+#define FCRAMSIZE BIT(27)
 
 typedef struct _3DS {
     ArmCore cpu;

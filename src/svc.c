@@ -105,6 +105,7 @@ DECL_SVC(GetResourceLimitLimitValues) {
         switch (names[i]) {
             case RES_MEMORY:
                 values[i] = FCRAMSIZE;
+                linfo("memory: %08x", values[i]);
                 break;
             default:
                 lwarn("unknown resource %d", names[i]);
@@ -122,6 +123,7 @@ DECL_SVC(GetResourceLimitCurrentValues) {
         switch (names[i]) {
             case RES_MEMORY:
                 values[i] = system->used_memory;
+                linfo("memory: %08x", values[i]);
                 break;
             default:
                 lwarn("unknown resource %d", names[i]);
