@@ -49,7 +49,9 @@ typedef struct _ArmCore {
             u32 t : 1; // thumb state
             u32 f : 1; // disable fiq
             u32 i : 1; // disable irq
-            u32 reserved : 19;
+            u32 reserved1 : 8;
+            u32 ge : 4;
+            u32 reserved2 : 7;
             u32 q : 1; // sticky overflow
             u32 v : 1; // overflow
             u32 c : 1; // carry
@@ -63,11 +65,6 @@ typedef struct _ArmCore {
     u32 banked_sp[B_CT];
     u32 banked_lr[B_CT];
     u32 banked_spsr[B_CT];
-
-    ArmInstr cur_instr;
-    ArmInstr next_instr;
-    u32 cur_instr_addr;
-    u32 next_instr_addr;
 
     u32 (*read8)(ArmCore* cpu, u32 addr, bool sx);
     u32 (*read16)(ArmCore* cpu, u32 addr, bool sx);
@@ -87,7 +84,6 @@ typedef struct _ArmCore {
 
     JITBlock*** jit_cache[64];
     u8** jit_dirty;
-    bool pending_flush;
 
     u32 vector_base;
 

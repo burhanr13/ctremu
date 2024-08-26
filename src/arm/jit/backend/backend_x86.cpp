@@ -916,10 +916,6 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 //     outLocalLabel();
                 // }
 
-                mov(eax, ptr[CPU(pc)]);
-                mov(ptr[CPU(cur_instr_addr)], eax);
-                mov(byte[CPU(pending_flush)], 1);
-
                 pop(rbx);
                 ret();
                 break;

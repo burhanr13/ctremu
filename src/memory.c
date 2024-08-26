@@ -9,7 +9,7 @@
 
 #include "3ds.h"
 #include "emulator_state.h"
-#include "svc_defs.h"
+#include "svc_types.h"
 #include "types.h"
 
 void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
@@ -37,18 +37,18 @@ void x3ds_memory_init(X3DS* system) {
     VMBlock* initblk = malloc(sizeof(VMBlock));
     *initblk = (VMBlock){
         .startpg = 0, .endpg = BIT(20), .perm = 0, .state = MEMST_FREE};
-    system->vmblocks.startpg = BIT(20);
-    system->vmblocks.endpg = BIT(20);
-    system->vmblocks.next = initblk;
-    system->vmblocks.prev = initblk;
-    initblk->prev = &system->vmblocks;
-    initblk->next = &system->vmblocks;
+    system->kernel.vmblocks.startpg = BIT(20);
+    system->kernel.vmblocks.endpg = BIT(20);
+    system->kernel.vmblocks.next = initblk;
+    system->kernel.vmblocks.prev = initblk;
+    initblk->prev = &system->kernel.vmblocks;
+    initblk->next = &system->kernel.vmblocks;
 }
 
 void x3ds_memory_destroy(X3DS* system) {
-    while (system->vmblocks.next != &system->vmblocks) {
-        VMBlock* tmp = system->vmblocks.next;
-        system->vmblocks.next = system->vmblocks.next->next;
+    while (system->kernel.vmblocks.next != &system->kernel.vmblocks) {
+        VMBlock* tmp = system->kernel.vmblocks.next;
+        system->kernel.vmblocks.next = system->kernel.vmblocks.next->next;
         free(tmp);
     }
 
@@ -57,8 +57,8 @@ void x3ds_memory_destroy(X3DS* system) {
 }
 
 void insert_vmblock(X3DS* system, VMBlock* n) {
-    VMBlock* l = system->vmblocks.next;
-    while (l != &system->vmblocks) {
+    VMBlock* l = system->kernel.vmblocks.next;
+    while (l != &system->kernel.vmblocks) {
         if (l->startpg <= n->startpg && n->startpg < l->endpg) break;
         l = l->next;
     }
@@ -142,16 +142,15 @@ void x3ds_vmalloc(X3DS* system, u32 base, u32 size, u32 perm, u32 state) {
         perror("mmap");
         exit(1);
     }
-    system->used_memory += size;
+    system->kernel.used_memory += size;
     linfo("mapped 3DS virtual memory at %08x with size 0x%x, perm %d, state %d",
           base, size, perm, state);
-    print_vmblocks(&system->vmblocks);
 }
 
 VMBlock* x3ds_vmquery(X3DS* system, u32 addr) {
     addr >>= 12;
-    VMBlock* b = system->vmblocks.next;
-    while (b != &system->vmblocks) {
+    VMBlock* b = system->kernel.vmblocks.next;
+    while (b != &system->kernel.vmblocks) {
         if (b->startpg <= addr && addr < b->endpg) return b;
         b = b->next;
     }

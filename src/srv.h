@@ -1,8 +1,9 @@
 #ifndef SRV_H
 #define SRV_H
 
-#include "3ds.h"
 #include "types.h"
+
+typedef struct _3DS X3DS;
 
 enum {
     SRV_SRV,
@@ -20,6 +21,8 @@ typedef union {
         u32 command : 16;
     };
 } IPCHeader;
+
+void init_services(X3DS* system);
 
 void handle_service_request(X3DS* system, u32 srv, IPCHeader cmd, u32 cmd_addr);
 

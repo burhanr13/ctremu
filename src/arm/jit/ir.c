@@ -356,13 +356,9 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
                         return;
                     }
                 }
-                cpu->cur_instr_addr = cpu->pc;
-                cpu->pending_flush = true;
                 return;
             case IR_END_RET:
                 cpu->cycles -= block->numinstr;
-                cpu->cur_instr_addr = cpu->pc;
-                cpu->pending_flush = true;
                 return;
         }
 #ifdef IR_TRACE

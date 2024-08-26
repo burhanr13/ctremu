@@ -8,7 +8,7 @@
 void cpu_init(X3DS* system);
 void cpu_free(X3DS* system);
 
-void cpu_run(X3DS* system, int cycles);
+bool cpu_run(X3DS* system, int cycles);
 
 u32 cpu_read8(X3DS* system, u32 addr, bool sx);
 u32 cpu_read16(X3DS* system, u32 addr, bool sx);

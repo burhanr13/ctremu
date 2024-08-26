@@ -5,6 +5,7 @@
 #include "3ds.h"
 #include "arm/jit/jit.h"
 #include "svc.h"
+#include "thread.h"
 
 //#define CPULOG
 
@@ -26,15 +27,20 @@ void cpu_free(X3DS* system) {
     jit_free_all(&system->cpu);
 }
 
-void cpu_run(X3DS* system, int cycles) {
+bool cpu_run(X3DS* system, int cycles) {
     system->cpu.cycles = cycles;
     while (system->cpu.cycles > 0) {
+        if (system->kernel.pending_thrd_resched) {
+            system->kernel.pending_thrd_resched = false;
+            if (!thread_reschedule(system)) return false;
+        }
 #ifdef CPULOG
         printf("executing at %08x\n", system->cpu.cur_instr_addr);
         cpu_print_state(&system->cpu);
 #endif
         arm_exec_jit(&system->cpu);
     }
+    return true;
 }
 
 u32 cpu_read8(X3DS* system, u32 addr, bool sx) {
@@ -77,7 +83,7 @@ u32 cp15_read(X3DS* system, u32 cn, u32 cm, u32 cp) {
                 case 0:
                     switch (cp) {
                         case 3:
-                            return TLS_BASE;
+                            return CUR_TLS;
                     }
                     break;
             }
@@ -93,6 +99,8 @@ void cp15_write(X3DS* system, u32 cn, u32 cm, u32 cp, u32 data) {
             switch (cm) {
                 case 10:
                     switch (cp) {
+                        case 4:
+                            return;
                         case 5:
                             return;
                     }

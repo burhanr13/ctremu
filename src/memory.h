@@ -14,6 +14,10 @@ typedef struct _VMBlock {
     struct _VMBlock* prev;
 } VMBlock;
 
+typedef struct {
+    u32 vaddr;
+} SHMemBlock;
+
 void x3ds_memory_init(X3DS* system);
 void x3ds_memory_destroy(X3DS* system);
 

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-#include "svc_defs.h"
+#include "svc_types.h"
 
 u32 load_elf(X3DS* system, char* filename) {
     FILE* fp = fopen(filename, "r");

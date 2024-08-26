@@ -9,6 +9,12 @@
 
 extern SRVFunc srv_funcs[SRV_MAX];
 
+void init_services(X3DS* system) {
+    system->services.gsp.memblock =
+        MAKE_HANDLE(HANDLE_MEMBLOCK,
+                    SVec_push(system->kernel.shmemblocks, (SHMemBlock){0}));
+}
+
 void handle_service_request(X3DS* system, u32 srv, IPCHeader cmd,
                             u32 cmd_addr) {
     srv_funcs[srv](system, cmd, cmd_addr);

@@ -9,6 +9,7 @@ enum {
     HANDLE_SESSION = 0x0001,
     HANDLE_EVENT = 0x0002,
     HANDLE_MEMBLOCK = 0x0003,
+    HANDLE_THREAD = 0x0004,
 };
 
 #define MAKE_HANDLE(type, val) (type << 16 | val)

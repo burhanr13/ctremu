@@ -264,11 +264,6 @@ void jit_free_all(ArmCore* cpu) {
 }
 
 void arm_exec_jit(ArmCore* cpu) {
-    JITBlock* block =
-        get_jitblock(cpu, cpu->cpsr.w & 0x3f, cpu->cur_instr_addr);
-    if (block) {
-        jit_exec(block);
-    } else {
-        arm_exec_instr(cpu);
-    }
+    JITBlock* block = get_jitblock(cpu, cpu->cpsr.w & 0x3f, cpu->pc);
+    jit_exec(block);
 }

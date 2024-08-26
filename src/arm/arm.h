@@ -220,8 +220,8 @@ typedef union {
     } pack_sat;
     struct {
         u32 u2 : 4;
-        u32 c2 : 4; // 1111
-        u32 u1 : 17;
+        u32 c2 : 1; // 1
+        u32 u1 : 20;
         u32 c1 : 3; // 011
         u32 cond : 4;
     } undefined;

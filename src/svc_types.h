@@ -1,6 +1,10 @@
 #ifndef SVC_DEFS_H
 #define SVC_DEFS_H
 
+#include "types.h"
+
+typedef u32 Handle;
+
 enum {
     MEMOP_ALLOC = 3,
     MEMOP_MASK = 0xff,
@@ -29,7 +33,5 @@ enum {
 enum {
     RES_MEMORY = 1,
 };
-
-#define IPC_CMD_OFF 0x80
 
 #endif

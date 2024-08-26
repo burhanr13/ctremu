@@ -61,7 +61,6 @@ ArmCompileFunc compile_funcs[ARM_MAX] = {
 #define EMIT_ALIGN_PC()                                                        \
     (EMITI0(LOAD_REG, 15), EMITVI(AND, LASTV, cpu->cpsr.t ? ~1 : ~3),          \
      EMITIV(STORE_REG, 15, LASTV))
-#define EMIT_UPDATE_PC() EMITI_STORE_REG(15, addr + 2 * INSTRLEN)
 
 void compile_block(ArmCore* cpu, IRBlock* block, u32 start_addr) {
 
@@ -590,7 +589,7 @@ DECL_ARM_COMPILE(sat_arith) {
 
 DECL_ARM_COMPILE(pack_sat) {
     if (!instr.pack_sat.p) {
-        lwarn("umimpl sat");
+        lwarn("unknown sat at %08x", addr);
     } else if (instr.pack_sat.x) {
         if (instr.pack_sat.s) {
             EMIT_LOAD_REG(instr.pack_sat.rm);
@@ -609,10 +608,10 @@ DECL_ARM_COMPILE(pack_sat) {
             }
             EMITV_STORE_REG(instr.pack_sat.rd, LASTV);
         } else {
-            lwarn("unknown xt16");
+            lwarn("unknown xt16 at %08x", addr);
         }
     } else {
-        lwarn("unknown pack");
+        lwarn("unknown pack at %08x", addr);
     }
     return true;
 }
@@ -951,7 +950,7 @@ DECL_ARM_COMPILE(branch) {
 
 DECL_ARM_COMPILE(cp_data_trans) {
     if ((instr.cp_data_trans.cpnum & ~1) == 10) {
-        lwarn("unknown vfp instr %08x", instr.w);
+        lwarn("unknown vfp instr %08x at %08x", instr.w, addr);
     } else {
         lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
@@ -960,7 +959,7 @@ DECL_ARM_COMPILE(cp_data_trans) {
 
 DECL_ARM_COMPILE(cp_data_proc) {
     if ((instr.cp_data_proc.cpnum & ~1) == 10) {
-        lwarn("unknown vfp instr %08x", instr.w);
+        lwarn("unknown vfp instr %08x at %08x", instr.w, addr);
     } else {
         lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
@@ -969,7 +968,7 @@ DECL_ARM_COMPILE(cp_data_proc) {
 
 DECL_ARM_COMPILE(cp_reg_trans) {
     if ((instr.cp_reg_trans.cpnum & ~1) == 10) {
-        lwarn("unknown vfp instr %08x", instr.w);
+        lwarn("unknown vfp instr %08x at %08x", instr.w, addr);
     } else if (instr.cp_reg_trans.cpnum == 15 &&
                instr.cp_reg_trans.cpopc == 0) {
         if (instr.cp_reg_trans.l) {
@@ -992,9 +991,8 @@ DECL_ARM_COMPILE(undefined) {
 }
 
 DECL_ARM_COMPILE(sw_intr) {
-    EMIT_UPDATE_PC();
-    EMITII(EXCEPTION, E_SWI, instr.w);
     EMITI_STORE_REG(15, addr + INSTRLEN);
+    EMITII(EXCEPTION, E_SWI, instr.w);
     EMIT00(END_RET);
     return false;
 }
