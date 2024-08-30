@@ -23,7 +23,7 @@ void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
 }
 
-void x3ds_memory_init(X3DS* system) {
+void hle3ds_memory_init(HLE3DS* system) {
     system->virtmem = mmap(NULL, BITL(32), PROT_NONE,
                            MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
     if (system->virtmem == MAP_FAILED) {
@@ -45,7 +45,7 @@ void x3ds_memory_init(X3DS* system) {
     initblk->next = &system->kernel.vmblocks;
 }
 
-void x3ds_memory_destroy(X3DS* system) {
+void hle3ds_memory_destroy(HLE3DS* system) {
     while (system->kernel.vmblocks.next != &system->kernel.vmblocks) {
         VMBlock* tmp = system->kernel.vmblocks.next;
         system->kernel.vmblocks.next = system->kernel.vmblocks.next->next;
@@ -56,7 +56,7 @@ void x3ds_memory_destroy(X3DS* system) {
     munmap(system->virtmem, BITL(32));
 }
 
-void insert_vmblock(X3DS* system, VMBlock* n) {
+void insert_vmblock(HLE3DS* system, VMBlock* n) {
     VMBlock* l = system->kernel.vmblocks.next;
     while (l != &system->kernel.vmblocks) {
         if (l->startpg <= n->startpg && n->startpg < l->endpg) break;
@@ -124,7 +124,7 @@ void print_vmblocks(VMBlock* vmblocks) {
     printf("\n");
 }
 
-void x3ds_vmalloc(X3DS* system, u32 base, u32 size, u32 perm, u32 state) {
+void hle3ds_vmalloc(HLE3DS* system, u32 base, u32 size, u32 perm, u32 state) {
     base = base & ~(PAGE_SIZE - 1);
     size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
     if (!size) return;
@@ -147,7 +147,7 @@ void x3ds_vmalloc(X3DS* system, u32 base, u32 size, u32 perm, u32 state) {
           base, size, perm, state);
 }
 
-VMBlock* x3ds_vmquery(X3DS* system, u32 addr) {
+VMBlock* hle3ds_vmquery(HLE3DS* system, u32 addr) {
     addr >>= 12;
     VMBlock* b = system->kernel.vmblocks.next;
     while (b != &system->kernel.vmblocks) {

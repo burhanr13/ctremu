@@ -9,7 +9,7 @@
 
 //#define CPULOG
 
-void cpu_init(X3DS* system) {
+void cpu_init(HLE3DS* system) {
     system->cpu.read8 = (void*) cpu_read8;
     system->cpu.read16 = (void*) cpu_read16;
     system->cpu.read32 = (void*) cpu_read32;
@@ -23,60 +23,60 @@ void cpu_init(X3DS* system) {
     system->cpu.cp15_write = (void*) cp15_write;
 }
 
-void cpu_free(X3DS* system) {
+void cpu_free(HLE3DS* system) {
     jit_free_all(&system->cpu);
 }
 
-bool cpu_run(X3DS* system, int cycles) {
+bool cpu_run(HLE3DS* system, int cycles) {
     system->cpu.cycles = cycles;
     while (system->cpu.cycles > 0) {
-        if (system->kernel.pending_thrd_resched) {
-            system->kernel.pending_thrd_resched = false;
-            if (!thread_reschedule(system)) return false;
-        }
 #ifdef CPULOG
-        printf("executing at %08x\n", system->cpu.cur_instr_addr);
-        cpu_print_state(&system->cpu);
+        printf("executing at %08x\n", system->cpu.pc);
+        //cpu_print_state(&system->cpu);
 #endif
         arm_exec_jit(&system->cpu);
+        if (system->cpu.wfe) {
+            system->cpu.wfe = false;
+            return false;
+        }
     }
     return true;
 }
 
-u32 cpu_read8(X3DS* system, u32 addr, bool sx) {
+u32 cpu_read8(HLE3DS* system, u32 addr, bool sx) {
     if (sx) return *(s8*) PTR(addr);
     else return *(u8*) PTR(addr);
 }
-u32 cpu_read16(X3DS* system, u32 addr, bool sx) {
+u32 cpu_read16(HLE3DS* system, u32 addr, bool sx) {
     if (sx) return *(s16*) PTR(addr);
     else return *(u16*) PTR(addr);
 }
-u32 cpu_read32(X3DS* system, u32 addr) {
+u32 cpu_read32(HLE3DS* system, u32 addr) {
     return *(u32*) PTR(addr);
 }
 
-void cpu_write8(X3DS* system, u32 addr, u8 b) {
+void cpu_write8(HLE3DS* system, u32 addr, u8 b) {
     *(u8*) PTR(addr) = b;
 }
-void cpu_write16(X3DS* system, u32 addr, u16 h) {
+void cpu_write16(HLE3DS* system, u32 addr, u16 h) {
     *(u16*) PTR(addr) = h;
 }
-void cpu_write32(X3DS* system, u32 addr, u32 w) {
+void cpu_write32(HLE3DS* system, u32 addr, u32 w) {
     *(u32*) PTR(addr) = w;
 }
 
-u16 cpu_fetch16(X3DS* system, u32 addr) {
+u16 cpu_fetch16(HLE3DS* system, u32 addr) {
     return *(u16*) PTR(addr);
 }
-u32 cpu_fetch32(X3DS* system, u32 addr) {
+u32 cpu_fetch32(HLE3DS* system, u32 addr) {
     return *(u32*) PTR(addr);
 }
 
-void cpu_handle_svc(X3DS* system, u32 num) {
-    x3ds_handle_svc(system, num);
+void cpu_handle_svc(HLE3DS* system, u32 num) {
+    hle3ds_handle_svc(system, num);
 }
 
-u32 cp15_read(X3DS* system, u32 cn, u32 cm, u32 cp) {
+u32 cp15_read(HLE3DS* system, u32 cn, u32 cm, u32 cp) {
     switch (cn) {
         case 13:
             switch (cm) {
@@ -93,7 +93,7 @@ u32 cp15_read(X3DS* system, u32 cn, u32 cm, u32 cp) {
     return 0;
 }
 
-void cp15_write(X3DS* system, u32 cn, u32 cm, u32 cp, u32 data) {
+void cp15_write(HLE3DS* system, u32 cn, u32 cm, u32 cp, u32 data) {
     switch (cn) {
         case 7:
             switch (cm) {

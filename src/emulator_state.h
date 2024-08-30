@@ -15,7 +15,7 @@ typedef struct {
     bool pause;
     bool mute;
 
-    X3DS system;
+    HLE3DS system;
 
 } EmulatorState;
 

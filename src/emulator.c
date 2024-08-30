@@ -36,15 +36,15 @@ int emulator_init(int argc, char** argv) {
 }
 
 void emulator_quit() {
-    x3ds_destroy(&ctremu.system);
+    hle3ds_destroy(&ctremu.system);
 }
 
 void emulator_reset() {
     if (ctremu.initialized) {
-        x3ds_destroy(&ctremu.system);
+        hle3ds_destroy(&ctremu.system);
     }
 
-    x3ds_init(&ctremu.system, ctremu.romfile);
+    hle3ds_init(&ctremu.system, ctremu.romfile);
 
     ctremu.initialized = true;
 }

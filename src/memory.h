@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-typedef struct _3DS X3DS;
+typedef struct _3DS HLE3DS;
 
 typedef struct _VMBlock {
     u32 startpg;
@@ -18,10 +18,10 @@ typedef struct {
     u32 vaddr;
 } SHMemBlock;
 
-void x3ds_memory_init(X3DS* system);
-void x3ds_memory_destroy(X3DS* system);
+void hle3ds_memory_init(HLE3DS* system);
+void hle3ds_memory_destroy(HLE3DS* system);
 
-void x3ds_vmalloc(X3DS* system, u32 base, u32 size, u32 perm, u32 state);
-VMBlock* x3ds_vmquery(X3DS* system, u32 addr);
+void hle3ds_vmalloc(HLE3DS* system, u32 base, u32 size, u32 perm, u32 state);
+VMBlock* hle3ds_vmquery(HLE3DS* system, u32 addr);
 
 #endif

@@ -14,7 +14,8 @@ typedef struct _KernelData {
 
     StaticVector(Thread, MAX_RES) threads;
     u32 cur_tid;
-    bool pending_thrd_resched;
+    StaticVector(SyncObj, MAX_RES* SYNCOBJ_MAX) syncobjs;
+    Vector(AddressThread) addr_arbiter_thrds;
 
     u32 used_memory;
 } KernelData;

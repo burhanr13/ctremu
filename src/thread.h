@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-typedef struct _3DS X3DS;
+typedef struct _3DS HLE3DS;
 
 enum {
     THRD_RUNNING,
@@ -30,14 +30,37 @@ typedef struct {
     u32 state;
 } Thread;
 
+enum {
+    SYNCOBJ_EVENT,
+    SYNCOBJ_MUTEX,
+    SYNCOBJ_SEM,
+
+    SYNCOBJ_MAX
+};
+
+typedef struct {
+    u32 type;
+    u32 value;
+    Vector(u32) waiting_thrds;
+} SyncObj;
+
+typedef struct {
+    u32 addr;
+    u32 tid;
+} AddressThread;
+
 #define THRD_MAX_PRIO 0x40
 
 #define CUR_THREAD (system->kernel.threads.d[system->kernel.cur_tid])
 #define CUR_TLS (TLS_BASE + TLS_SIZE * system->kernel.cur_tid)
 
-void thread_init(X3DS* system, u32 entrypoint);
-u32 thread_create(X3DS* system, u32 entrypoint, u32 stacktop, u32 priority,
+void thread_init(HLE3DS* system, u32 entrypoint);
+u32 thread_create(HLE3DS* system, u32 entrypoint, u32 stacktop, u32 priority,
                   u32 arg);
-bool thread_reschedule(X3DS* system);
+bool thread_reschedule(HLE3DS* system);
+
+u32 syncobj_create(HLE3DS* system, u32 type);
+bool syncobj_wait(HLE3DS* system, u32 id);
+void syncobj_signal(HLE3DS* system, u32 id);
 
 #endif

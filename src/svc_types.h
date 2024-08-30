@@ -31,6 +31,14 @@ enum {
 };
 
 enum {
+    ARBITRATE_SIGNAL,
+    ARBITRATE_WAIT,
+    ARBITRATE_DEC_WAIT,
+    ARBITRATE_WAIT_TIMEOUT,
+    ARBITRATE_DEC_WAIT_TIMEOUT,
+};
+
+enum {
     RES_MEMORY = 1,
 };
 

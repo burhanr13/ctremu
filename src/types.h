@@ -15,10 +15,10 @@
     printf("\e[32m[INFO](%s) " format "\e[0m\n",                               \
            __func__ __VA_OPT__(, ) __VA_ARGS__)
 #define lwarn(format, ...)                                                     \
-    eprintf("\e[33m[WARNING](%s) " format "\e[0m\n",                           \
+    printf("\e[33m[WARNING](%s) " format "\e[0m\n",                           \
             __func__ __VA_OPT__(, ) __VA_ARGS__)
 #define lerror(format, ...)                                                    \
-    eprintf("\e[31m[ERROR](%s) " format "\e[0m\n",                             \
+    printf("\e[31m[ERROR](%s) " format "\e[0m\n",                             \
             __func__ __VA_OPT__(, ) __VA_ARGS__)
 
 typedef uint8_t u8;
@@ -76,7 +76,7 @@ typedef int64_t s64;
 #define Vec_init(v) ((v).d = NULL, (v).size = 0, (v).cap = 0)
 #define Vec_assn(v1, v2)                                                       \
     ((v1).d = (v2).d, (v1).size = (v2).size, (v1).cap = (v2).cap)
-#define Vec_free(v) (free((v).d))
+#define Vec_free(v) (free((v).d), Vec_init(v))
 #define Vec_push(v, e)                                                         \
     ({                                                                         \
         if ((v).size == (v).cap) {                                             \
@@ -85,6 +85,13 @@ typedef int64_t s64;
         }                                                                      \
         (v).d[(v).size++] = (e);                                               \
         (v).size - 1;                                                          \
+    })
+#define Vec_remove(v, i)                                                       \
+    ({                                                                         \
+        (v).size--;                                                            \
+        for (int j = i; j < (v).size; j++) {                                   \
+            (v).d[j] = (v).d[j + 1];                                           \
+        }                                                                      \
     })
 #define Vec_foreach(e, v)                                                      \
     for (typeof((v).d[0])* e = (v).d; e < (v).d + (v).size; e++)

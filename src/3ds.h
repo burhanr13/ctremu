@@ -4,9 +4,10 @@
 #include "arm/arm_core.h"
 #include "kernel.h"
 #include "memory.h"
-#include "types.h"
-#include "srv.h"
+#include "scheduler.h"
 #include "service_data.h"
+#include "srv.h"
+#include "types.h"
 
 #define CPU_CLK BIT(28)
 #define FPS 60
@@ -16,17 +17,20 @@
 typedef struct _3DS {
     ArmCore cpu;
 
-    u64 now;
-
     u8* virtmem;
 
     KernelData kernel;
 
     ServiceData services;
-} X3DS;
+
+    bool frame_complete;
+
+    Scheduler sched;
+} HLE3DS;
 
 #define R(n) system->cpu.r[n]
-#define PTR(addr) (void*) &system->virtmem[addr]
+#define RR(n) (system->cpu.rr[n >> 1])
+#define PTR(addr) ((void*) &system->virtmem[addr])
 
 #define PAGE_SIZE BIT(12)
 
@@ -43,9 +47,9 @@ typedef struct _3DS {
 #define TLS_SIZE 0x200
 #define IPC_CMD_OFF 0x80
 
-void x3ds_init(X3DS* system, char* romfile);
-void x3ds_destroy(X3DS* system);
+void hle3ds_init(HLE3DS* system, char* romfile);
+void hle3ds_destroy(HLE3DS* system);
 
-void x3ds_run_frame(X3DS* system);
+void hle3ds_run_frame(HLE3DS* system);
 
 #endif

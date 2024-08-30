@@ -7,7 +7,7 @@
 #include "svc_types.h"
 #include "thread.h"
 
-void x3ds_handle_svc(X3DS* system, u32 num) {
+void hle3ds_handle_svc(HLE3DS* system, u32 num) {
     num &= 0xff;
     if (!svc_table[num]) {
         lerror("unknown svc 0x%x (0x%x,0x%x,0x%x,0x%x) at %08x (lr=%08x)", num,
@@ -33,7 +33,7 @@ DECL_SVC(ControlMemory) {
     R(0) = 0;
     switch (memop) {
         case MEMOP_ALLOC:
-            x3ds_vmalloc(system, addr0, size, perm, MEMST_PRIVATE);
+            hle3ds_vmalloc(system, addr0, size, perm, MEMST_PRIVATE);
             R(1) = addr0;
             break;
         default:
@@ -44,7 +44,7 @@ DECL_SVC(ControlMemory) {
 
 DECL_SVC(QueryMemory) {
     u32 addr = R(2);
-    VMBlock* b = x3ds_vmquery(system, addr);
+    VMBlock* b = hle3ds_vmquery(system, addr);
     R(0) = 0;
     R(1) = b->startpg << 12;
     R(2) = (b->endpg - b->startpg) << 12;
@@ -74,12 +74,20 @@ DECL_SVC(CreateThread) {
 
     R(0) = 0;
     R(1) = MAKE_HANDLE(HANDLE_THREAD, newtid);
-    system->kernel.pending_thrd_resched = true;
+
+    if (priority > CUR_THREAD.priority) thread_reschedule(system);
 }
 
 DECL_SVC(CreateEvent) {
+    u32 id = syncobj_create(system, SYNCOBJ_EVENT);
+    if (id == -1) {
+        R(0) = -1;
+        lwarn("could not create event");
+        return;
+    }
+
     R(0) = 0;
-    R(1) = 1;
+    R(1) = MAKE_HANDLE(HANDLE_SYNCOBJ, id);
 }
 
 DECL_SVC(ClearEvent) {
@@ -100,7 +108,7 @@ DECL_SVC(MapMemoryBlock) {
 
     system->kernel.shmemblocks.d[HANDLE_VAL(memblock)].vaddr = addr;
 
-    x3ds_vmalloc(system, addr, PAGE_SIZE, perm, MEMST_SHARED);
+    hle3ds_vmalloc(system, addr, PAGE_SIZE, perm, MEMST_SHARED);
 }
 
 DECL_SVC(CreateAddressArbiter) {
@@ -109,9 +117,60 @@ DECL_SVC(CreateAddressArbiter) {
 }
 
 DECL_SVC(ArbitrateAddress) {
-    CUR_THREAD.state = THRD_SLEEP;
-    system->kernel.pending_thrd_resched = true;
+    u32 addr = R(1);
+    u32 type = R(2);
+    s32 value = R(3);
+    s64 time = RR(4);
+
     R(0) = 0;
+
+    switch (type) {
+        case ARBITRATE_SIGNAL:
+            linfo("signaling address %08x", addr);
+            if (value < 0) {
+                Vec_foreach(t, system->kernel.addr_arbiter_thrds) {
+                    if (t->addr != addr) continue;
+                    linfo("waking up thread %d", t->tid);
+                    system->kernel.threads.d[t->tid].state = THRD_READY;
+                    Vec_remove(system->kernel.addr_arbiter_thrds,
+                               t - system->kernel.addr_arbiter_thrds.d);
+                    t--;
+                }
+            } else {
+                for (int i = 0; i < value; i++) {
+                    u32 maxprio = 0;
+                    u32 maxi = -1;
+                    u32 tid;
+                    Vec_foreach(t, system->kernel.addr_arbiter_thrds) {
+                        if (t->addr != addr) continue;
+                        if (system->kernel.threads.d[t->tid].priority >=
+                            maxprio) {
+                            maxprio = system->kernel.threads.d[t->tid].priority;
+                            maxi = t - system->kernel.addr_arbiter_thrds.d;
+                            tid = t->tid;
+                        }
+                    }
+                    if (maxi == -1) break;
+                    linfo("waking up thread %d", tid);
+                    system->kernel.threads.d[tid].state = THRD_READY;
+                    Vec_remove(system->kernel.addr_arbiter_thrds, maxi);
+                }
+            }
+            thread_reschedule(system);
+            break;
+        case ARBITRATE_WAIT:
+            if (*(s32*) PTR(addr) < value) {
+                Vec_push(system->kernel.addr_arbiter_thrds,
+                         ((AddressThread){addr, system->kernel.cur_tid}));
+                CUR_THREAD.state = THRD_SLEEP;
+                linfo("waiting on address %08x", addr);
+                thread_reschedule(system);
+            }
+            break;
+        default:
+            R(0) = -1;
+            lwarn("unknown arbitration type");
+    }
 }
 
 DECL_SVC(CloseHandle) {
@@ -119,9 +178,18 @@ DECL_SVC(CloseHandle) {
 }
 
 DECL_SVC(WaitSynchronization1) {
-    CUR_THREAD.state = THRD_SLEEP;
-    system->kernel.pending_thrd_resched = true;
+    u32 handle = R(0);
+    if (HANDLE_TYPE(handle) != HANDLE_SYNCOBJ ||
+        HANDLE_VAL(handle) >= system->kernel.syncobjs.size) {
+        R(0) = -1;
+        lwarn("invalid handle %x", handle);
+    }
+    syncobj_wait(system, HANDLE_VAL(handle));
     R(0) = 0;
+}
+
+DECL_SVC(GetSystemTick) {
+    RR(0) = system->sched.now;
 }
 
 DECL_SVC(ConnectToPort) {
@@ -196,7 +264,7 @@ DECL_SVC(Break) {
 }
 
 DECL_SVC(OutputDebugString) {
-    printf("%*s", R(1), PTR(R(0)));
+    printf("%*s\n", R(1), PTR(R(0)));
 }
 
 SVCFunc svc_table[SVC_MAX] = {
@@ -210,6 +278,7 @@ SVCFunc svc_table[SVC_MAX] = {
     [0x22] = svc_ArbitrateAddress,
     [0x23] = svc_CloseHandle,
     [0x24] = svc_WaitSynchronization1,
+    [0x28] = svc_GetSystemTick,
     [0x2d] = svc_ConnectToPort,
     [0x32] = svc_SendSyncRequest,
     [0x38] = svc_GetResourceLimit,
@@ -230,6 +299,7 @@ char* svc_names[SVC_MAX] = {
     [0x22] = "ArbitrateAddress",
     [0x23] = "CloseHandle",
     [0x24] = "WaitSynchronization1",
+    [0x28] = "GetSystemTick",
     [0x2d] = "ConnectToPort",
     [0x32] = "SendSyncRequest",
     [0x38] = "GetResourceLimit",
