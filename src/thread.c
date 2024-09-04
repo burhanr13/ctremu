@@ -4,20 +4,20 @@
 
 void load_context(HLE3DS* system) {
     for (int i = 0; i < 16; i++) {
-        system->cpu.r[i] =
-            system->kernel.threads.d[system->kernel.cur_tid].context.r[i];
-        system->cpu.cpsr.w =
-            system->kernel.threads.d[system->kernel.cur_tid].context.cpsr;
+        system->cpu.r[i] = CUR_THREAD.context.r[i];
+        system->cpu.d[i] = CUR_THREAD.context.d[i];
     }
+    system->cpu.cpsr.w = CUR_THREAD.context.cpsr;
+    system->cpu.fpscr.w = CUR_THREAD.context.fpscr;
 }
 
 void save_context(HLE3DS* system) {
     for (int i = 0; i < 16; i++) {
-        system->kernel.threads.d[system->kernel.cur_tid].context.r[i] =
-            system->cpu.r[i];
-        system->kernel.threads.d[system->kernel.cur_tid].context.cpsr =
-            system->cpu.cpsr.w;
+        CUR_THREAD.context.r[i] = system->cpu.r[i];
+        CUR_THREAD.context.d[i] = system->cpu.d[i];
     }
+    CUR_THREAD.context.cpsr = system->cpu.cpsr.w;
+    CUR_THREAD.context.fpscr = system->cpu.fpscr.w;
 }
 
 void thread_init(HLE3DS* system, u32 entrypoint) {
@@ -25,7 +25,7 @@ void thread_init(HLE3DS* system, u32 entrypoint) {
         thread_create(system, entrypoint, STACK_BASE, 0x30, 0);
 
     load_context(system);
-    system->kernel.threads.d[system->kernel.cur_tid].state = THRD_RUNNING;
+    CUR_THREAD.state = THRD_RUNNING;
 }
 
 u32 thread_create(HLE3DS* system, u32 entrypoint, u32 stacktop, u32 priority,

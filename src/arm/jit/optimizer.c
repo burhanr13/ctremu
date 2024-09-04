@@ -662,6 +662,14 @@ void optimize_waitloop(IRBlock* block) {
             case IR_STORE_MEM32:
                 STORE(MEM);
                 break;
+            case IR_VFP_DATA_PROC:
+            case IR_VFP_LOAD_MEM:
+            case IR_VFP_STORE_MEM:
+            case IR_VFP_READ:
+            case IR_VFP_WRITE:
+            case IR_CP15_READ:
+            case IR_CP15_WRITE:
+                return;
             default:
                 break;
         }
@@ -701,7 +709,7 @@ void optimize_blocklinking(IRBlock* block, ArmCore* cpu) {
             case IR_MODESWITCH:
             case IR_EXCEPTION:
             case IR_WFE:
-            case IR_WRITE_CP15:
+            case IR_CP15_WRITE:
                 can_link = false;
                 break;
             case IR_END_RET:

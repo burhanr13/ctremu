@@ -264,7 +264,8 @@ DECL_SVC(Break) {
 }
 
 DECL_SVC(OutputDebugString) {
-    printf("%*s\n", R(1), PTR(R(0)));
+    printf("%*s\n", R(1), (char*) PTR(R(0)));
+    if (!strncmp(PTR(R(0)), "Exited C3D_FrameEnd", R(1))) exit(0);
 }
 
 SVCFunc svc_table[SVC_MAX] = {

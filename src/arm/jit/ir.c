@@ -1,6 +1,7 @@
 #include "ir.h"
 
 #include "jit.h"
+#include "../vfp.h"
 
 bool iropc_hasresult(IROpcode opc) {
     if (opc > IR_NOP) return true;
@@ -11,12 +12,15 @@ bool iropc_hasresult(IROpcode opc) {
         case IR_LOAD_CPSR:
         case IR_LOAD_SPSR:
         case IR_LOAD_THUMB:
-        case IR_READ_CP15:
         case IR_LOAD_MEM8:
         case IR_LOAD_MEMS8:
         case IR_LOAD_MEM16:
         case IR_LOAD_MEMS16:
         case IR_LOAD_MEM32:
+        case IR_VFP_READ:
+        case IR_VFP_READ64L:
+        case IR_VFP_READ64H:
+        case IR_CP15_READ:
             return true;
         default:
             return false;
@@ -25,8 +29,6 @@ bool iropc_hasresult(IROpcode opc) {
 
 bool iropc_iscallback(IROpcode opc) {
     switch (opc) {
-        case IR_READ_CP15:
-        case IR_WRITE_CP15:
         case IR_LOAD_MEM8:
         case IR_LOAD_MEMS8:
         case IR_LOAD_MEM16:
@@ -37,6 +39,17 @@ bool iropc_iscallback(IROpcode opc) {
         case IR_STORE_MEM32:
         case IR_MODESWITCH:
         case IR_EXCEPTION:
+        case IR_VFP_DATA_PROC:
+        case IR_VFP_LOAD_MEM:
+        case IR_VFP_STORE_MEM:
+        case IR_VFP_READ:
+        case IR_VFP_WRITE:
+        case IR_VFP_READ64L:
+        case IR_VFP_READ64H:
+        case IR_VFP_WRITE64L:
+        case IR_VFP_WRITE64H:
+        case IR_CP15_READ:
+        case IR_CP15_WRITE:
             return true;
         default:
             return false;
@@ -56,7 +69,9 @@ bool iropc_ispure(IROpcode opc) {
     }
 }
 
-#define OP(n) (inst.imm##n ? inst.op##n : v[inst.op##n])
+#define OP(n)                                                                  \
+    (block->code.d[i].imm##n ? block->code.d[i].op##n                          \
+                             : v[block->code.d[i].op##n])
 
 #define ADDCV(op1, op2, c)                                                     \
     do {                                                                       \
@@ -78,12 +93,11 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
     }
 #endif
 
-    bool cf, vf;
+    bool cf = 0, vf = 0;
     bool jmptaken;
     while (true) {
         while (block->code.d[i].opcode == IR_NOP) i++;
-        IRInstr inst = block->code.d[i];
-        switch (inst.opcode) {
+        switch (block->code.d[i].opcode) {
             case IR_LOAD_REG:
                 v[i] = cpu->r[OP(1)];
                 break;
@@ -137,22 +151,63 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
             case IR_STORE_THUMB:
                 cpu->cpsr.t = OP(2);
                 break;
-            case IR_READ_CP15: {
-                ArmInstr cpinst = {OP(1)};
-                if (cpinst.cp_reg_trans.cpnum == 15) {
-                    v[i] = cpu->cp15_read(cpu, cpinst.cp_reg_trans.crn,
-                                          cpinst.cp_reg_trans.crm,
-                                          cpinst.cp_reg_trans.cp);
-                }
+            case IR_VFP_DATA_PROC: {
+                ArmInstr vfpinst = {OP(1)};
+                exec_vfp_data_proc(cpu, vfpinst);
                 break;
             }
-            case IR_WRITE_CP15: {
+            case IR_VFP_LOAD_MEM: {
+                ArmInstr vfpinst = {OP(1)};
+                exec_vfp_load_mem(cpu, vfpinst, OP(2));
+                break;
+            }
+            case IR_VFP_STORE_MEM: {
+                ArmInstr vfpinst = {OP(1)};
+                exec_vfp_store_mem(cpu, vfpinst, OP(2));
+                break;
+            }
+            case IR_VFP_READ: {
+                ArmInstr vfpinst = {OP(1)};
+                v[i] = exec_vfp_read(cpu, vfpinst);
+                break;
+            }
+            case IR_VFP_WRITE: {
+                ArmInstr vfpinst = {OP(1)};
+                exec_vfp_write(cpu, vfpinst, OP(2));
+                break;
+            }
+            case IR_VFP_READ64L: {
+                ArmInstr vfpinst = {OP(1)};
+                u64 d = exec_vfp_read64(cpu, vfpinst);
+                v[i] = d;
+                i++;
+                v[i] = d >> 32;
+                break;
+            }
+            case IR_VFP_READ64H:
+                break;
+            case IR_VFP_WRITE64L: {
+                ArmInstr vfpinst = {OP(1)};
+                u64 d = OP(2);
+                i++;
+                d |= (u64) OP(2) << 32;
+                exec_vfp_write64(cpu, vfpinst, d);
+                break;
+            }
+            case IR_VFP_WRITE64H:
+                break;
+            case IR_CP15_READ: {
                 ArmInstr cpinst = {OP(1)};
-                if (cpinst.cp_reg_trans.cpnum == 15) {
-                    cpu->cp15_write(cpu, cpinst.cp_reg_trans.crn,
-                                    cpinst.cp_reg_trans.crm,
-                                    cpinst.cp_reg_trans.cp, OP(2));
-                }
+                v[i] = cpu->cp15_read(cpu, cpinst.cp_reg_trans.crn,
+                                      cpinst.cp_reg_trans.crm,
+                                      cpinst.cp_reg_trans.cp);
+                break;
+            }
+            case IR_CP15_WRITE: {
+                ArmInstr cpinst = {OP(1)};
+                cpu->cp15_write(cpu, cpinst.cp_reg_trans.crn,
+                                cpinst.cp_reg_trans.crm, cpinst.cp_reg_trans.cp,
+                                OP(2));
                 break;
             }
             case IR_LOAD_MEM8:
@@ -449,12 +504,6 @@ void ir_disasm_instr(IRInstr inst, int i) {
             DISASM(load_thumb, 1, 0, 0);
         case IR_STORE_THUMB:
             DISASM(store_thumb, 0, 0, 1);
-        case IR_READ_CP15:
-            DISASM(READ_CP15, 1, 1, 0);
-            break;
-        case IR_WRITE_CP15:
-            DISASM(WRITE_CP15, 0, 1, 1);
-            break;
         case IR_LOAD_MEM8:
             DISASM_MEM(load_mem8, 1, 0);
         case IR_LOAD_MEMS8:
@@ -471,6 +520,28 @@ void ir_disasm_instr(IRInstr inst, int i) {
             DISASM_MEM(store_mem16, 0, 1);
         case IR_STORE_MEM32:
             DISASM_MEM(store_mem32, 0, 1);
+        case IR_VFP_DATA_PROC:
+            DISASM(vfp_data_proc, 0, 1, 0);
+        case IR_VFP_LOAD_MEM:
+            DISASM(vfp_load_mem, 0, 1, 1);
+        case IR_VFP_STORE_MEM:
+            DISASM(vfp_store_mem, 0, 1, 1);
+        case IR_VFP_READ:
+            DISASM(vfp_read, 1, 1, 0);
+        case IR_VFP_WRITE:
+            DISASM(vfp_write, 0, 1, 1);
+        case IR_VFP_READ64L:
+            DISASM(vfp_read64l, 1, 1, 0);
+        case IR_VFP_READ64H:
+            DISASM(vfp_read64h, 1, 1, 0);
+        case IR_VFP_WRITE64L:
+            DISASM(vfp_write64l, 0, 1, 1);
+        case IR_VFP_WRITE64H:
+            DISASM(vfp_write64h, 0, 1, 1);
+        case IR_CP15_READ:
+            DISASM(cp15_read, 1, 1, 0);
+        case IR_CP15_WRITE:
+            DISASM(cp15_write, 0, 1, 1);
         case IR_NOP:
             return;
         case IR_MOV:

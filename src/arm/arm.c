@@ -45,13 +45,15 @@ ArmInstrFormat arm_decode_instr(ArmInstr instr) {
         return ARM_CPREGTRANS;
     } else if (instr.cp_data_proc.c1 == 0b1110 && instr.cp_reg_trans.c2 == 0) {
         return ARM_CPDATAPROC;
+    } else if (instr.cp_double_reg_trans.c1 == 0b1100010) {
+        return ARM_CPDOUBLEREGTRANS;
     } else if (instr.cp_data_trans.c1 == 0b110) {
         return ARM_CPDATATRANS;
     } else if (instr.branch.c1 == 0b101) {
         return ARM_BRANCH;
     } else if (instr.block_trans.c1 == 0b100) {
         return ARM_BLOCKTRANS;
-    } else if(instr.pack_sat.c1 == 0b01101 && instr.pack_sat.c2 == 1) {
+    } else if (instr.pack_sat.c1 == 0b01101 && instr.pack_sat.c2 == 1) {
         return ARM_PACKSAT;
     } else if (instr.undefined.c1 == 0b011 && instr.undefined.c2 == 1) {
         return ARM_UNDEFINED;

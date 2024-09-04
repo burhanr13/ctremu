@@ -3,6 +3,8 @@
 #include <capstone/capstone.h>
 #include <xbyak/xbyak.h>
 
+#include <vector>
+
 struct Code : Xbyak::CodeGenerator {
     RegAllocation* regalloc;
     HostRegAllocation hralloc;
@@ -219,7 +221,95 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 }
                 break;
             }
-            case IR_READ_CP15: {
+            case IR_VFP_DATA_PROC: {
+                mov(rdi, rbx);
+                mov(esi, inst.op1);
+                mov(rax, (u64) exec_vfp_data_proc);
+                call(rax);
+                break;
+            }
+            case IR_VFP_LOAD_MEM: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                mov(rdi, rbx);
+                mov(esi, inst.op1);
+                mov(rax, (u64) exec_vfp_load_mem);
+                call(rax);
+                break;
+            }
+            case IR_VFP_STORE_MEM: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                mov(rdi, rbx);
+                mov(esi, inst.op1);
+                mov(rax, (u64) exec_vfp_store_mem);
+                call(rax);
+                break;
+            }
+            case IR_VFP_READ: {
+                mov(rdi, rbx);
+                mov(esi, inst.op1);
+                mov(rax, (u64) exec_vfp_read);
+                call(rax);
+                mov(getOp(i), eax);
+                break;
+            }
+            case IR_VFP_WRITE: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                mov(rdi, rbx);
+                mov(esi, inst.op1);
+                mov(rax, (u64) exec_vfp_write);
+                call(rax);
+                break;
+            }
+            case IR_VFP_READ64L: {
+                mov(rdi, rbx);
+                mov(esi, inst.op1);
+                mov(rax, (u64) exec_vfp_read64);
+                call(rax);
+                mov(getOp(i), eax);
+                shr(rax, 32);
+                mov(getOp(i + 1), eax);
+                i++;
+                break;
+            }
+            case IR_VFP_READ64H:
+                break;
+            case IR_VFP_WRITE64L: {
+                if(inst.imm2) {
+                    mov(edx, inst.op2);
+                }else{
+                    mov(edx, getOp(inst.op2));
+                }
+                IRInstr hinst = ir->code.d[i + 1];
+                if (hinst.imm2) {
+                    mov(eax, hinst.op2);
+                } else {
+                    mov(eax, getOp(hinst.op2));
+                }
+                shl(rax, 32);
+                or_(rdx, rax);
+
+                mov(esi, inst.op1);
+                mov(rdi, rbx);
+                mov(rax, (u64) exec_vfp_write64);
+                call(rax);
+                i++;
+                break;
+            }
+            case IR_VFP_WRITE64H:
+                break;
+            case IR_CP15_READ: {
                 ArmInstr cpinst = {inst.op1};
                 mov(rdi, rbx);
                 mov(esi, cpinst.cp_reg_trans.crn);
@@ -230,7 +320,7 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 mov(getOp(i), eax);
                 break;
             }
-            case IR_WRITE_CP15: {
+            case IR_CP15_WRITE: {
                 if (inst.imm2) {
                     mov(r8d, inst.op2);
                 } else {

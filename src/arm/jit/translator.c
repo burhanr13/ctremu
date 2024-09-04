@@ -3,6 +3,7 @@
 #include "../arm.h"
 #include "../thumb.h"
 #include "jit.h"
+#include <stdlib.h>
 
 ArmCompileFunc compile_funcs[ARM_MAX] = {
     [ARM_DATAPROC] = compile_arm_data_proc,
@@ -20,6 +21,7 @@ ArmCompileFunc compile_funcs[ARM_MAX] = {
     [ARM_UNDEFINED] = compile_arm_undefined,
     [ARM_BLOCKTRANS] = compile_arm_block_trans,
     [ARM_BRANCH] = compile_arm_branch,
+    [ARM_CPDOUBLEREGTRANS] = compile_arm_cp_double_reg_trans,
     [ARM_CPDATATRANS] = compile_arm_cp_data_trans,
     [ARM_CPDATAPROC] = compile_arm_cp_data_proc,
     [ARM_CPREGTRANS] = compile_arm_cp_reg_trans,
@@ -510,7 +512,7 @@ DECL_ARM_COMPILE(multiply_short) {
             EMITV_STORE_REG(instr.multiply_short.rd, vres);
             break;
         }
-        case 1:
+        case 1: {
             u32 vres = EMITVV(SMULW, vop1, vop2);
             if (!instr.multiply_short.x) {
                 EMIT_LOAD_REG(instr.multiply_short.rn);
@@ -521,6 +523,7 @@ DECL_ARM_COMPILE(multiply_short) {
             }
             EMITV_STORE_REG(instr.multiply_short.rd, vres);
             break;
+        }
         case 2: {
             u32 vres = EMITVV(MUL, vop1, vop2);
             u32 vsx = EMITVI(ASR, vres, 31);
@@ -948,39 +951,92 @@ DECL_ARM_COMPILE(branch) {
     return false;
 }
 
+DECL_ARM_COMPILE(cp_double_reg_trans) {
+    if ((instr.cp_double_reg_trans.cpnum & ~1) == 10) {
+        if (instr.cp_double_reg_trans.l) {
+            u32 vlo = EMITI0(VFP_READ64L, instr.w);
+            u32 vhi = EMITI0(VFP_READ64H, instr.w);
+            EMITV_STORE_REG(instr.cp_double_reg_trans.rdlo, vlo);
+            EMITV_STORE_REG(instr.cp_double_reg_trans.rdhi, vhi);
+        } else {
+            u32 vlo = EMIT_LOAD_REG(instr.cp_double_reg_trans.rdlo);
+            u32 vhi = EMIT_LOAD_REG(instr.cp_double_reg_trans.rdhi);
+            EMITIV(VFP_WRITE64L, instr.w, vlo);
+            EMITIV(VFP_WRITE64H, instr.w, vhi);
+        }
+    } else {
+        lerror("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
+    }
+    return true;
+}
+
 DECL_ARM_COMPILE(cp_data_trans) {
     if ((instr.cp_data_trans.cpnum & ~1) == 10) {
-        lwarn("unknown vfp instr %08x at %08x", instr.w, addr);
+        u32 vaddr = EMIT_LOAD_REG(instr.cp_data_trans.rn);
+        u32 offset = instr.cp_data_trans.offset << 2;
+
+        if (instr.cp_data_trans.u) {
+            EMITVI(ADD, vaddr, offset);
+        } else {
+            EMITVI(SUB, vaddr, offset);
+        }
+        u32 vwback = LASTV;
+        if (instr.cp_data_trans.p) vaddr = vwback;
+
+        if (instr.cp_data_trans.w || !instr.cp_data_trans.p) {
+            EMITV_STORE_REG(instr.cp_data_trans.rn, vwback);
+        }
+
+        if (instr.cp_data_trans.l) {
+            EMITIV(VFP_LOAD_MEM, instr.w, vaddr);
+        } else {
+            EMITIV(VFP_STORE_MEM, instr.w, vaddr);
+        }
     } else {
-        lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
+        lerror("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
     return true;
 }
 
 DECL_ARM_COMPILE(cp_data_proc) {
     if ((instr.cp_data_proc.cpnum & ~1) == 10) {
-        lwarn("unknown vfp instr %08x at %08x", instr.w, addr);
+        EMITI0(VFP_DATA_PROC, instr.w);
     } else {
-        lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
+        lerror("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
     return true;
 }
 
 DECL_ARM_COMPILE(cp_reg_trans) {
     if ((instr.cp_reg_trans.cpnum & ~1) == 10) {
-        lwarn("unknown vfp instr %08x at %08x", instr.w, addr);
+        if (instr.cp_reg_trans.l) {
+            EMITI0(VFP_READ, instr.w);
+            if (instr.cp_reg_trans.rd == 15) {
+                u32 tmp = EMITVI(AND, LASTV, 0xf0000000);
+                EMIT00(LOAD_CPSR);
+                EMITVI(AND, LASTV, 0x0fffffff);
+                EMITVV(OR, LASTV, tmp);
+                EMIT0V(STORE_CPSR, LASTV);
+            } else {
+                EMITV_STORE_REG(instr.cp_reg_trans.rd, LASTV);
+            }
+        } else {
+            EMIT_LOAD_REG(instr.cp_reg_trans.rd);
+            EMITIV(VFP_WRITE, instr.w, LASTV);
+            return false;
+        }
     } else if (instr.cp_reg_trans.cpnum == 15 &&
                instr.cp_reg_trans.cpopc == 0) {
         if (instr.cp_reg_trans.l) {
-            EMITI0(READ_CP15, instr.w);
+            EMITI0(CP15_READ, instr.w);
             EMITV_STORE_REG(instr.cp_reg_trans.rd, LASTV);
         } else {
             EMIT_LOAD_REG(instr.cp_reg_trans.rd);
-            EMITIV(WRITE_CP15, instr.w, LASTV);
+            EMITIV(CP15_WRITE, instr.w, LASTV);
             return false;
         }
     } else {
-        lwarn("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
+        lerror("unknown coprocessor cp%d", instr.cp_reg_trans.cpnum);
     }
     return true;
 }

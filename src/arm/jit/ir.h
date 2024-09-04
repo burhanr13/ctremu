@@ -21,8 +21,7 @@ typedef enum {
     IR_STORE_SPSR,
     IR_LOAD_THUMB,
     IR_STORE_THUMB,
-    IR_READ_CP15,
-    IR_WRITE_CP15,
+
     IR_LOAD_MEM8,
     IR_LOAD_MEMS8,
     IR_LOAD_MEM16,
@@ -31,6 +30,19 @@ typedef enum {
     IR_STORE_MEM8,
     IR_STORE_MEM16,
     IR_STORE_MEM32,
+
+    IR_VFP_DATA_PROC,
+    IR_VFP_LOAD_MEM,
+    IR_VFP_STORE_MEM,
+    IR_VFP_READ,
+    IR_VFP_WRITE,
+    IR_VFP_READ64L,
+    IR_VFP_READ64H,
+    IR_VFP_WRITE64L,
+    IR_VFP_WRITE64H,
+
+    IR_CP15_READ,
+    IR_CP15_WRITE,
 
     IR_SETC,
 

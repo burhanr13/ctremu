@@ -21,6 +21,11 @@ void cpu_write32(HLE3DS* system, u32 addr, u32 w);
 u16 cpu_fetch16(HLE3DS* system, u32 addr);
 u32 cpu_fetch32(HLE3DS* system, u32 addr);
 
+float cpu_readf32(HLE3DS* system, u32 addr);
+double cpu_readf64(HLE3DS* system, u32 addr);
+void cpu_writef32(HLE3DS* system, u32 addr, float f);
+void cpu_writef64(HLE3DS* system, u32 addr, double d);
+
 void cpu_handle_svc(HLE3DS* system, u32 num);
 
 u32 cp15_read(HLE3DS* system, u32 cn, u32 cm, u32 cp);

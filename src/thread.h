@@ -24,6 +24,9 @@ typedef struct {
             };
         };
         u32 cpsr;
+        
+        double d[16];
+        u32 fpscr;
     } context;
 
     s32 priority;

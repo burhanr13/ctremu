@@ -30,6 +30,7 @@ DECL_ARM_COMPILE(pack_sat);
 DECL_ARM_COMPILE(undefined);
 DECL_ARM_COMPILE(block_trans);
 DECL_ARM_COMPILE(branch);
+DECL_ARM_COMPILE(cp_double_reg_trans);
 DECL_ARM_COMPILE(cp_data_trans);
 DECL_ARM_COMPILE(cp_data_proc);
 DECL_ARM_COMPILE(cp_reg_trans);

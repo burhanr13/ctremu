@@ -243,6 +243,16 @@ typedef union {
         u32 cond : 4;
     } branch;
     struct {
+        u32 crm : 4;
+        u32 cp : 4;
+        u32 cpnum : 4;
+        u32 rdlo : 4;
+        u32 rdhi : 4;
+        u32 l : 1;
+        u32 c1 : 7; // 1100010
+        u32 cond : 4;
+    } cp_double_reg_trans;
+    struct {
         u32 offset : 8;
         u32 cpnum : 4;
         u32 crd : 4;
@@ -301,6 +311,7 @@ typedef enum {
     ARM_UNDEFINED,
     ARM_BLOCKTRANS,
     ARM_BRANCH,
+    ARM_CPDOUBLEREGTRANS,
     ARM_CPDATATRANS,
     ARM_CPDATAPROC,
     ARM_CPREGTRANS,

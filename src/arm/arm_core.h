@@ -46,21 +46,36 @@ typedef struct _ArmCore {
     union {
         u32 w;
         struct {
-            u32 m : 5; // mode
-            u32 t : 1; // thumb state
-            u32 f : 1; // disable fiq
-            u32 i : 1; // disable irq
+            u32 m : 5;
+            u32 t : 1;
+            u32 f : 1;
+            u32 i : 1;
             u32 reserved1 : 8;
             u32 ge : 4;
             u32 reserved2 : 7;
-            u32 q : 1; // sticky overflow
-            u32 v : 1; // overflow
-            u32 c : 1; // carry
-            u32 z : 1; // zero
-            u32 n : 1; // negative
+            u32 q : 1;
+            u32 v : 1;
+            u32 c : 1;
+            u32 z : 1;
+            u32 n : 1;
         };
     } cpsr;
     u32 spsr;
+
+    union {
+        float s[32];
+        double d[16];
+        u32 is[32];
+        u64 id[16];
+    };
+
+    union {
+        u32 w;
+        struct {
+            u32 reserved : 28;
+            u32 nzcv : 4;
+        };
+    } fpscr;
 
     u32 banked_r8_12[2][5];
     u32 banked_sp[B_CT];
@@ -77,6 +92,11 @@ typedef struct _ArmCore {
 
     u16 (*fetch16)(ArmCore* cpu, u32 addr);
     u32 (*fetch32)(ArmCore* cpu, u32 addr);
+
+    float (*readf32)(ArmCore* cpu, u32 addr);
+    double (*readf64)(ArmCore* cpu, u32 addr);
+    void (*writef32)(ArmCore* cpu, u32 addr, float f);
+    void (*writef64)(ArmCore* cpu, u32 addr, double d);
 
     void (*handle_svc)(ArmCore* cpu, u32 num);
 

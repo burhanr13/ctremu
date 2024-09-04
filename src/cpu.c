@@ -1,7 +1,5 @@
 #include "cpu.h"
 
-#include <string.h>
-
 #include "3ds.h"
 #include "arm/jit/jit.h"
 #include "svc.h"
@@ -18,6 +16,10 @@ void cpu_init(HLE3DS* system) {
     system->cpu.write32 = (void*) cpu_write32;
     system->cpu.fetch16 = (void*) cpu_fetch16;
     system->cpu.fetch32 = (void*) cpu_fetch32;
+    system->cpu.readf32 = (void*) cpu_readf32;
+    system->cpu.readf64 = (void*) cpu_readf64;
+    system->cpu.writef32 = (void*) cpu_writef32;
+    system->cpu.writef64 = (void*) cpu_writef64;
     system->cpu.handle_svc = (void*) cpu_handle_svc;
     system->cpu.cp15_read = (void*) cp15_read;
     system->cpu.cp15_write = (void*) cp15_write;
@@ -70,6 +72,22 @@ u16 cpu_fetch16(HLE3DS* system, u32 addr) {
 }
 u32 cpu_fetch32(HLE3DS* system, u32 addr) {
     return *(u32*) PTR(addr);
+}
+
+float cpu_readf32(HLE3DS* system, u32 addr) {
+    return *(float*) PTR(addr);
+}
+
+double cpu_readf64(HLE3DS* system, u32 addr) {
+    return *(double*) PTR(addr);
+}
+
+void cpu_writef32(HLE3DS* system, u32 addr, float f) {
+    *(float*) PTR(addr) = f;
+}
+
+void cpu_writef64(HLE3DS* system, u32 addr, double d) {
+    *(double*) PTR(addr) = d;
 }
 
 void cpu_handle_svc(HLE3DS* system, u32 num) {
