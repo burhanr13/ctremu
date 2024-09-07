@@ -18,10 +18,10 @@ typedef struct {
     u32 vaddr;
 } SHMemBlock;
 
-void hle3ds_memory_init(HLE3DS* system);
-void hle3ds_memory_destroy(HLE3DS* system);
+void hle3ds_memory_init(HLE3DS* s);
+void hle3ds_memory_destroy(HLE3DS* s);
 
-void hle3ds_vmalloc(HLE3DS* system, u32 base, u32 size, u32 perm, u32 state);
-VMBlock* hle3ds_vmquery(HLE3DS* system, u32 addr);
+void hle3ds_vmalloc(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state);
+VMBlock* hle3ds_vmquery(HLE3DS* s, u32 addr);
 
 #endif

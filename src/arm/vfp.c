@@ -191,14 +191,17 @@ void exec_vfp_data_proc(ArmCore* cpu, ArmInstr instr) {
 }
 
 void exec_vfp_load_mem(ArmCore* cpu, ArmInstr instr, u32 addr) {
-    u32 rcount = instr.cp_data_trans.offset;
-    if (instr.cp_data_trans.p && !instr.cp_data_trans.w) rcount = 2;
+    u32 rcount;
+    if (instr.cp_data_trans.p && !instr.cp_data_trans.w) {
+        rcount = 1;
+    } else {
+        rcount = instr.cp_data_trans.offset;
+        if (instr.cp_data_trans.cpnum & 1) rcount >>= 1;
+    }
 
     u32 vd = instr.cp_data_trans.crd;
 
     if (instr.cp_data_trans.cpnum & 1) {
-        rcount /= 2;
-
         for (int i = 0; i < rcount; i++) {
             cpu->d[(vd + i) & 15] = cpu->readf64(cpu, addr + 8 * i);
         }
@@ -212,14 +215,17 @@ void exec_vfp_load_mem(ArmCore* cpu, ArmInstr instr, u32 addr) {
 }
 
 void exec_vfp_store_mem(ArmCore* cpu, ArmInstr instr, u32 addr) {
-    u32 rcount = instr.cp_data_trans.offset;
-    if (instr.cp_data_trans.p && !instr.cp_data_trans.w) rcount = 2;
+    u32 rcount;
+    if (instr.cp_data_trans.p && !instr.cp_data_trans.w) {
+        rcount = 1;
+    } else {
+        rcount = instr.cp_data_trans.offset;
+        if (instr.cp_data_trans.cpnum & 1) rcount >>= 1;
+    }
 
     u32 vd = instr.cp_data_trans.crd;
 
     if (instr.cp_data_trans.cpnum & 1) {
-        rcount /= 2;
-
         for (int i = 0; i < rcount; i++) {
             cpu->writef64(cpu, addr + 8 * i, cpu->d[(vd + i) & 15]);
         }

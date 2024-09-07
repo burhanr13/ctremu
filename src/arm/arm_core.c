@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-#include "thumb.h"
+// #include "thumb.h"
 
 // void cpu_fetch_instr(ArmCore* cpu) {
 //     cpu->cur_instr = cpu->next_instr;
@@ -91,7 +91,7 @@ void cpu_update_mode(ArmCore* cpu, CpuMode old) {
         case M_SYSTEM:
             return;
         default:
-            lwarn("illegal cpu mode %x (pc = %08x)", cpu->cpsr.m, cpu->pc);
+            lerror("illegal cpu mode %x (pc = %08x)", cpu->cpsr.m, cpu->pc);
     }
 }
 
@@ -166,17 +166,38 @@ void cpu_print_state(ArmCore* cpu) {
                                   "r6", "r7", "r8", "r9", "r10", "r11",
                                   "ip", "sp", "lr", "pc"};
     for (int i = 0; i < 4; i++) {
-        if (i == 0) printf("CPU ");
-        else printf("    ");
+        if (i == 0) printf("CPU\t");
+        else printf("\t");
         for (int j = 0; j < 4; j++) {
-            printf("%3s=0x%08x ", reg_names[4 * i + j], cpu->r[4 * i + j]);
+            printf("%3s=0x%08x\t", reg_names[4 * i + j], cpu->r[4 * i + j]);
         }
         printf("\n");
     }
-    printf("     cpsr=%08x (n=%d,z=%d,c=%d,v=%d,q=%d,i=%d,f=%d,t=%d,m=%s)\n",
+    printf("\tcpsr=%08x (n=%d,z=%d,c=%d,v=%d,q=%d,i=%d,f=%d,t=%d,m=%s)\n",
            cpu->cpsr.w, cpu->cpsr.n, cpu->cpsr.z, cpu->cpsr.c, cpu->cpsr.v,
            cpu->cpsr.q, cpu->cpsr.i, cpu->cpsr.v, cpu->cpsr.t,
            mode_name(cpu->cpsr.m));
+}
+
+void cpu_print_vfp_state(ArmCore* cpu) {
+    for (int i = 0; i < 8; i++) {
+        printf("\t");
+        for (int j = 0; j < 4; j++) {
+            printf("s%d=%f\t", 4 * i + j, cpu->s[4 * i + j]);
+        }
+        printf("\n\t");
+        for (int j = 0; j < 4; j++) {
+            printf("(0x%08x)\t", cpu->is[4 * i + j]);
+        }
+        printf("\n");
+    }
+    for (int i = 0; i < 4; i++) {
+        printf("\t");
+        for (int j = 0; j < 4; j++) {
+            printf("d%d=%lf\t", 4 * i + j, cpu->d[4 * i + j]);
+        }
+        printf("\n");
+    }
 }
 
 // void cpu_print_cur_instr(ArmCore* cpu) {

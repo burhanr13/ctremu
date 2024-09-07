@@ -1023,7 +1023,6 @@ DECL_ARM_COMPILE(cp_reg_trans) {
         } else {
             EMIT_LOAD_REG(instr.cp_reg_trans.rd);
             EMITIV(VFP_WRITE, instr.w, LASTV);
-            return false;
         }
     } else if (instr.cp_reg_trans.cpnum == 15 &&
                instr.cp_reg_trans.cpopc == 0) {

@@ -2,6 +2,7 @@
 #define _3DS_H
 
 #include "arm/arm_core.h"
+#include "gpu.h"
 #include "kernel.h"
 #include "memory.h"
 #include "scheduler.h"
@@ -17,6 +18,8 @@
 typedef struct _3DS {
     ArmCore cpu;
 
+    GPU gpu;
+
     u8* virtmem;
 
     KernelData kernel;
@@ -28,9 +31,9 @@ typedef struct _3DS {
     Scheduler sched;
 } HLE3DS;
 
-#define R(n) system->cpu.r[n]
-#define RR(n) (system->cpu.rr[n >> 1])
-#define PTR(addr) ((void*) &system->virtmem[addr])
+#define R(n) s->cpu.r[n]
+#define RR(n) (s->cpu.rr[n >> 1])
+#define PTR(addr) ((void*) &s->virtmem[addr])
 
 #define PAGE_SIZE BIT(12)
 
@@ -47,9 +50,9 @@ typedef struct _3DS {
 #define TLS_SIZE 0x200
 #define IPC_CMD_OFF 0x80
 
-void hle3ds_init(HLE3DS* system, char* romfile);
-void hle3ds_destroy(HLE3DS* system);
+void hle3ds_init(HLE3DS* s, char* romfile);
+void hle3ds_destroy(HLE3DS* s);
 
-void hle3ds_run_frame(HLE3DS* system);
+void hle3ds_run_frame(HLE3DS* s);
 
 #endif

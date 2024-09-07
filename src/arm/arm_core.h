@@ -125,6 +125,8 @@ void cpu_handle_exception(ArmCore* cpu, CpuException intr);
 void cpu_undefined_fail(ArmCore* cpu, u32 instr);
 
 void cpu_print_state(ArmCore* cpu);
+void cpu_print_vfp_state(ArmCore* cpu);
+
 void cpu_print_cur_instr(ArmCore* cpu);
 
 #endif

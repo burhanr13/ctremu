@@ -16,12 +16,12 @@ enum {
 #define HANDLE_TYPE(h) ((u32) h >> 16)
 #define HANDLE_VAL(h) (h & 0xffff)
 
-typedef void (*SVCFunc)(HLE3DS* system);
-#define DECL_SVC(name) void svc_##name(HLE3DS* system)
+typedef void (*SVCFunc)(HLE3DS* s);
+#define DECL_SVC(name) void svc_##name(HLE3DS* s)
 
 extern SVCFunc svc_table[SVC_MAX];
 extern char* svc_names[SVC_MAX];
 
-void hle3ds_handle_svc(HLE3DS* system, u32 num);
+void hle3ds_handle_svc(HLE3DS* s, u32 num);
 
 #endif

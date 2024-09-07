@@ -7,16 +7,16 @@
 #include "svc_types.h"
 #include "thread.h"
 
-void hle3ds_handle_svc(HLE3DS* system, u32 num) {
+void hle3ds_handle_svc(HLE3DS* s, u32 num) {
     num &= 0xff;
     if (!svc_table[num]) {
         lerror("unknown svc 0x%x (0x%x,0x%x,0x%x,0x%x) at %08x (lr=%08x)", num,
-               R(0), R(1), R(2), R(3), system->cpu.pc, system->cpu.lr);
+               R(0), R(1), R(2), R(3), s->cpu.pc, s->cpu.lr);
         return;
     }
     linfo("svc 0x%x: %s(0x%x,0x%x,0x%x,0x%x,0x%x)", num, svc_names[num], R(0),
           R(1), R(2), R(3), R(4));
-    svc_table[num](system);
+    svc_table[num](s);
 }
 
 DECL_SVC(ControlMemory) {
@@ -33,7 +33,7 @@ DECL_SVC(ControlMemory) {
     R(0) = 0;
     switch (memop) {
         case MEMOP_ALLOC:
-            hle3ds_vmalloc(system, addr0, size, perm, MEMST_PRIVATE);
+            hle3ds_vmalloc(s, addr0, size, perm, MEMST_PRIVATE);
             R(1) = addr0;
             break;
         default:
@@ -44,7 +44,7 @@ DECL_SVC(ControlMemory) {
 
 DECL_SVC(QueryMemory) {
     u32 addr = R(2);
-    VMBlock* b = hle3ds_vmquery(system, addr);
+    VMBlock* b = hle3ds_vmquery(s, addr);
     R(0) = 0;
     R(1) = b->startpg << 12;
     R(2) = (b->endpg - b->startpg) << 12;
@@ -65,24 +65,24 @@ DECL_SVC(CreateThread) {
     }
     stacktop &= ~7;
 
-    u32 newtid = thread_create(system, entrypoint, stacktop, priority, arg);
+    u32 newtid = thread_create(s, entrypoint, stacktop, priority, arg);
     if (newtid == -1) {
         R(0) = -1;
-        lwarn("ran out of threads");
+        lerror("ran out of threads");
         return;
     }
 
     R(0) = 0;
     R(1) = MAKE_HANDLE(HANDLE_THREAD, newtid);
 
-    if (priority > CUR_THREAD.priority) thread_reschedule(system);
+    if (priority > CUR_THREAD.priority) thread_reschedule(s);
 }
 
 DECL_SVC(CreateEvent) {
-    u32 id = syncobj_create(system, SYNCOBJ_EVENT);
+    u32 id = syncobj_create(s, SYNCOBJ_EVENT);
     if (id == -1) {
         R(0) = -1;
-        lwarn("could not create event");
+        lerror("could not create event");
         return;
     }
 
@@ -100,15 +100,15 @@ DECL_SVC(MapMemoryBlock) {
     u32 perm = R(2);
 
     if (HANDLE_TYPE(memblock) != HANDLE_MEMBLOCK ||
-        HANDLE_VAL(memblock) >= system->kernel.shmemblocks.size) {
+        HANDLE_VAL(memblock) >= s->kernel.shmemblocks.size) {
         R(0) = -1;
         lerror("invalid memory block");
         return;
     }
 
-    system->kernel.shmemblocks.d[HANDLE_VAL(memblock)].vaddr = addr;
+    s->kernel.shmemblocks.d[HANDLE_VAL(memblock)].vaddr = addr;
 
-    hle3ds_vmalloc(system, addr, PAGE_SIZE, perm, MEMST_SHARED);
+    hle3ds_vmalloc(s, addr, PAGE_SIZE, perm, MEMST_SHARED);
 }
 
 DECL_SVC(CreateAddressArbiter) {
@@ -128,12 +128,12 @@ DECL_SVC(ArbitrateAddress) {
         case ARBITRATE_SIGNAL:
             linfo("signaling address %08x", addr);
             if (value < 0) {
-                Vec_foreach(t, system->kernel.addr_arbiter_thrds) {
+                Vec_foreach(t, s->kernel.addr_arbiter_thrds) {
                     if (t->addr != addr) continue;
                     linfo("waking up thread %d", t->tid);
-                    system->kernel.threads.d[t->tid].state = THRD_READY;
-                    Vec_remove(system->kernel.addr_arbiter_thrds,
-                               t - system->kernel.addr_arbiter_thrds.d);
+                    s->kernel.threads.d[t->tid].state = THRD_READY;
+                    Vec_remove(s->kernel.addr_arbiter_thrds,
+                               t - s->kernel.addr_arbiter_thrds.d);
                     t--;
                 }
             } else {
@@ -141,30 +141,29 @@ DECL_SVC(ArbitrateAddress) {
                     u32 maxprio = 0;
                     u32 maxi = -1;
                     u32 tid;
-                    Vec_foreach(t, system->kernel.addr_arbiter_thrds) {
+                    Vec_foreach(t, s->kernel.addr_arbiter_thrds) {
                         if (t->addr != addr) continue;
-                        if (system->kernel.threads.d[t->tid].priority >=
-                            maxprio) {
-                            maxprio = system->kernel.threads.d[t->tid].priority;
-                            maxi = t - system->kernel.addr_arbiter_thrds.d;
+                        if (s->kernel.threads.d[t->tid].priority >= maxprio) {
+                            maxprio = s->kernel.threads.d[t->tid].priority;
+                            maxi = t - s->kernel.addr_arbiter_thrds.d;
                             tid = t->tid;
                         }
                     }
                     if (maxi == -1) break;
                     linfo("waking up thread %d", tid);
-                    system->kernel.threads.d[tid].state = THRD_READY;
-                    Vec_remove(system->kernel.addr_arbiter_thrds, maxi);
+                    s->kernel.threads.d[tid].state = THRD_READY;
+                    Vec_remove(s->kernel.addr_arbiter_thrds, maxi);
                 }
             }
-            thread_reschedule(system);
+            thread_reschedule(s);
             break;
         case ARBITRATE_WAIT:
             if (*(s32*) PTR(addr) < value) {
-                Vec_push(system->kernel.addr_arbiter_thrds,
-                         ((AddressThread){addr, system->kernel.cur_tid}));
+                Vec_push(s->kernel.addr_arbiter_thrds,
+                         ((AddressThread) {addr, s->kernel.cur_tid}));
                 CUR_THREAD.state = THRD_SLEEP;
                 linfo("waiting on address %08x", addr);
-                thread_reschedule(system);
+                thread_reschedule(s);
             }
             break;
         default:
@@ -180,16 +179,16 @@ DECL_SVC(CloseHandle) {
 DECL_SVC(WaitSynchronization1) {
     u32 handle = R(0);
     if (HANDLE_TYPE(handle) != HANDLE_SYNCOBJ ||
-        HANDLE_VAL(handle) >= system->kernel.syncobjs.size) {
+        HANDLE_VAL(handle) >= s->kernel.syncobjs.size) {
         R(0) = -1;
-        lwarn("invalid handle %x", handle);
+        lerror("invalid handle %x", handle);
     }
-    syncobj_wait(system, HANDLE_VAL(handle));
+    syncobj_wait(s, HANDLE_VAL(handle));
     R(0) = 0;
 }
 
 DECL_SVC(GetSystemTick) {
-    RR(0) = system->sched.now;
+    RR(0) = s->sched.now;
 }
 
 DECL_SVC(ConnectToPort) {
@@ -200,7 +199,7 @@ DECL_SVC(ConnectToPort) {
         R(1) = MAKE_HANDLE(HANDLE_SESSION, SRV_SRV);
     } else {
         R(0) = -1;
-        lwarn("unknown port '%s'", port);
+        lerror("unknown port '%s'", port);
     }
 }
 
@@ -212,8 +211,7 @@ DECL_SVC(SendSyncRequest) {
     }
     u32 cmd_addr = CUR_TLS + IPC_CMD_OFF;
     IPCHeader cmd = {*(u32*) PTR(cmd_addr)};
-    handle_service_request(system, HANDLE_VAL(R(0)), cmd,
-                           CUR_TLS + IPC_CMD_OFF);
+    services_handle_request(s, HANDLE_VAL(R(0)), cmd, CUR_TLS + IPC_CMD_OFF);
     R(0) = 0;
 }
 
@@ -248,7 +246,7 @@ DECL_SVC(GetResourceLimitCurrentValues) {
     for (int i = 0; i < count; i++) {
         switch (names[i]) {
             case RES_MEMORY:
-                values[i] = system->kernel.used_memory;
+                values[i] = s->kernel.used_memory;
                 linfo("memory: %08x", values[i]);
                 break;
             default:
@@ -265,7 +263,7 @@ DECL_SVC(Break) {
 
 DECL_SVC(OutputDebugString) {
     printf("%*s\n", R(1), (char*) PTR(R(0)));
-    if (!strncmp(PTR(R(0)), "Exited C3D_FrameEnd", R(1))) exit(0);
+    //if (!strncmp(PTR(R(0)), "Exited C3D_FrameEnd", R(1))) exit(0);
 }
 
 SVCFunc svc_table[SVC_MAX] = {

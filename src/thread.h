@@ -54,16 +54,16 @@ typedef struct {
 
 #define THRD_MAX_PRIO 0x40
 
-#define CUR_THREAD (system->kernel.threads.d[system->kernel.cur_tid])
-#define CUR_TLS (TLS_BASE + TLS_SIZE * system->kernel.cur_tid)
+#define CUR_THREAD (s->kernel.threads.d[s->kernel.cur_tid])
+#define CUR_TLS (TLS_BASE + TLS_SIZE * s->kernel.cur_tid)
 
-void thread_init(HLE3DS* system, u32 entrypoint);
-u32 thread_create(HLE3DS* system, u32 entrypoint, u32 stacktop, u32 priority,
+void thread_init(HLE3DS* s, u32 entrypoint);
+u32 thread_create(HLE3DS* s, u32 entrypoint, u32 stacktop, u32 priority,
                   u32 arg);
-bool thread_reschedule(HLE3DS* system);
+bool thread_reschedule(HLE3DS* s);
 
-u32 syncobj_create(HLE3DS* system, u32 type);
-bool syncobj_wait(HLE3DS* system, u32 id);
-void syncobj_signal(HLE3DS* system, u32 id);
+u32 syncobj_create(HLE3DS* s, u32 type);
+bool syncobj_wait(HLE3DS* s, u32 id);
+void syncobj_signal(HLE3DS* s, u32 id);
 
 #endif

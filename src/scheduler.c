@@ -27,7 +27,7 @@ int run_next_event(Scheduler* sched) {
 
     switch (e.type) {
         case EVENT_GSP:
-            handle_gsp_event(sched->master, e.arg);
+            gsp_handle_event(sched->master, e.arg);
             break;
         default:
     }
@@ -37,7 +37,7 @@ int run_next_event(Scheduler* sched) {
 
 void add_event(Scheduler* sched, EventType t, u32 event_arg, s64 reltime) {
     if (sched->event_queue.size == EVENT_MAX) {
-        lwarn("event queue is full");
+        lerror("event queue is full");
         return;
     }
 

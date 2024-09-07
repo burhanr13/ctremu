@@ -1,10 +1,8 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "3ds.h"
 #include "emulator.h"
-#include "types.h"
 
 char wintitle[200];
 

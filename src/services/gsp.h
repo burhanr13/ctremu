@@ -21,6 +21,7 @@ typedef struct {
 
 DECL_SRV(gsp_gpu);
 
-void handle_gsp_event(HLE3DS* system, u32 arg);
+void gsp_handle_event(HLE3DS* s, u32 arg);
+void gsp_handle_command(HLE3DS* s);
 
 #endif

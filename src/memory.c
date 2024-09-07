@@ -14,8 +14,7 @@
 
 void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     u8* addr = info->si_addr;
-    if (ctremu.system.virtmem <= addr &&
-        addr < ctremu.system.virtmem + BITL(32)) {
+    if (ctremu.system.virtmem <= addr && addr < ctremu.system.virtmem + BITL(32)) {
         lerror("(FATAL) invalid 3DS memory access at %08x (pc near %08x)",
                addr - ctremu.system.virtmem, ctremu.system.cpu.pc);
         exit(1);
@@ -23,10 +22,10 @@ void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
 }
 
-void hle3ds_memory_init(HLE3DS* system) {
-    system->virtmem = mmap(NULL, BITL(32), PROT_NONE,
-                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
-    if (system->virtmem == MAP_FAILED) {
+void hle3ds_memory_init(HLE3DS* s) {
+    s->virtmem = mmap(NULL, BITL(32), PROT_NONE,
+                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
+    if (s->virtmem == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
@@ -37,28 +36,28 @@ void hle3ds_memory_init(HLE3DS* system) {
     VMBlock* initblk = malloc(sizeof(VMBlock));
     *initblk = (VMBlock){
         .startpg = 0, .endpg = BIT(20), .perm = 0, .state = MEMST_FREE};
-    system->kernel.vmblocks.startpg = BIT(20);
-    system->kernel.vmblocks.endpg = BIT(20);
-    system->kernel.vmblocks.next = initblk;
-    system->kernel.vmblocks.prev = initblk;
-    initblk->prev = &system->kernel.vmblocks;
-    initblk->next = &system->kernel.vmblocks;
+    s->kernel.vmblocks.startpg = BIT(20);
+    s->kernel.vmblocks.endpg = BIT(20);
+    s->kernel.vmblocks.next = initblk;
+    s->kernel.vmblocks.prev = initblk;
+    initblk->prev = &s->kernel.vmblocks;
+    initblk->next = &s->kernel.vmblocks;
 }
 
-void hle3ds_memory_destroy(HLE3DS* system) {
-    while (system->kernel.vmblocks.next != &system->kernel.vmblocks) {
-        VMBlock* tmp = system->kernel.vmblocks.next;
-        system->kernel.vmblocks.next = system->kernel.vmblocks.next->next;
+void hle3ds_memory_destroy(HLE3DS* s) {
+    while (s->kernel.vmblocks.next != &s->kernel.vmblocks) {
+        VMBlock* tmp = s->kernel.vmblocks.next;
+        s->kernel.vmblocks.next = s->kernel.vmblocks.next->next;
         free(tmp);
     }
 
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
-    munmap(system->virtmem, BITL(32));
+    munmap(s->virtmem, BITL(32));
 }
 
-void insert_vmblock(HLE3DS* system, VMBlock* n) {
-    VMBlock* l = system->kernel.vmblocks.next;
-    while (l != &system->kernel.vmblocks) {
+void insert_vmblock(HLE3DS* s, VMBlock* n) {
+    VMBlock* l = s->kernel.vmblocks.next;
+    while (l != &s->kernel.vmblocks) {
         if (l->startpg <= n->startpg && n->startpg < l->endpg) break;
         l = l->next;
     }
@@ -124,7 +123,7 @@ void print_vmblocks(VMBlock* vmblocks) {
     printf("\n");
 }
 
-void hle3ds_vmalloc(HLE3DS* system, u32 base, u32 size, u32 perm, u32 state) {
+void hle3ds_vmalloc(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state) {
     base = base & ~(PAGE_SIZE - 1);
     size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
     if (!size) return;
@@ -134,23 +133,23 @@ void hle3ds_vmalloc(HLE3DS* system, u32 base, u32 size, u32 perm, u32 state) {
                    .endpg = (base + size) >> 12,
                    .perm = perm,
                    .state = state};
-    insert_vmblock(system, n);
+    insert_vmblock(s, n);
 
-    void* ptr = mmap(&system->virtmem[base], size, PROT_READ | PROT_WRITE,
+    void* ptr = mmap(&s->virtmem[base], size, PROT_READ | PROT_WRITE,
                      MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
     if (ptr == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
-    system->kernel.used_memory += size;
+    s->kernel.used_memory += size;
     linfo("mapped 3DS virtual memory at %08x with size 0x%x, perm %d, state %d",
           base, size, perm, state);
 }
 
-VMBlock* hle3ds_vmquery(HLE3DS* system, u32 addr) {
+VMBlock* hle3ds_vmquery(HLE3DS* s, u32 addr) {
     addr >>= 12;
-    VMBlock* b = system->kernel.vmblocks.next;
-    while (b != &system->kernel.vmblocks) {
+    VMBlock* b = s->kernel.vmblocks.next;
+    while (b != &s->kernel.vmblocks) {
         if (b->startpg <= addr && addr < b->endpg) return b;
         b = b->next;
     }
