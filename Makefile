@@ -7,9 +7,9 @@ CFLAGS := -Wall -Wimplicit-fallthrough -Wno-format -Wno-unused-variable -Werror
 CFLAGS_RELEASE := -O3 -flto
 CFLAGS_DEBUG := -g -fsanitize=address
 
-CPPFLAGS := -MP -MMD
+CPPFLAGS := -MP -MMD -D_GNU_SOURCE
 
-LDFLAGS := -lm -lSDL2 -lreadline -lcapstone
+LDFLAGS := -lm -lSDL2 -lGL -lGLEW -lreadline -lcapstone
 
 ifeq ($(shell uname),Darwin)
 	CPPFLAGS += -I$(shell brew --prefix)/include

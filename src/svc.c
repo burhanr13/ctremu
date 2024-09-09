@@ -22,18 +22,18 @@ void hle3ds_handle_svc(HLE3DS* s, u32 num) {
 DECL_SVC(ControlMemory) {
     u32 memop = R(0) & MEMOP_MASK;
     u32 memreg = R(0) & MEMOP_REGMASK;
-    u32 linear = R(0) & MEMOP_LINEAR;
+    bool linear = R(0) & MEMOP_LINEAR;
     u32 addr0 = R(1);
     u32 addr1 = R(2);
     u32 size = R(3);
     u32 perm = R(4);
 
-    if (linear && !addr0) addr0 = lINEAR_HEAP_BASE;
+    if (linear && !addr0) addr0 = LINEAR_HEAP_BASE;
 
     R(0) = 0;
     switch (memop) {
         case MEMOP_ALLOC:
-            hle3ds_vmalloc(s, addr0, size, perm, MEMST_PRIVATE);
+            hle3ds_vmmap(s, addr0, size, perm, MEMST_PRIVATE, linear);
             R(1) = addr0;
             break;
         default:
@@ -108,7 +108,7 @@ DECL_SVC(MapMemoryBlock) {
 
     s->kernel.shmemblocks.d[HANDLE_VAL(memblock)].vaddr = addr;
 
-    hle3ds_vmalloc(s, addr, PAGE_SIZE, perm, MEMST_SHARED);
+    hle3ds_vmmap(s, addr, PAGE_SIZE, perm, MEMST_SHARED, false);
 }
 
 DECL_SVC(CreateAddressArbiter) {

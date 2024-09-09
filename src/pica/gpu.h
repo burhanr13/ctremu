@@ -1,0 +1,168 @@
+#ifndef GPU_H
+#define GPU_H
+
+#include "../types.h"
+
+#define GPUREG(r) ((offsetof(GPU, io.r) - offsetof(GPU, io)) >> 2)
+#define GPUREG_MAX 0x300
+#define GSH sh[0]
+#define VSH sh[1]
+
+typedef float fvec[4];
+
+typedef struct {
+    fvec pos;
+    fvec color;
+} Vertex;
+
+typedef struct {
+
+    u8* mem;
+
+    u32 progdata[BIT(12)];
+    u32 opdescs[128];
+    u32 sh_idx;
+
+    fvec fixattrs[16];
+    u32 curfixattr;
+    int curfixi;
+
+    u32 curuniform;
+    int curunifi;
+
+    fvec cst[96];
+    fvec in[16];
+    fvec out[16];
+    fvec reg[16];
+
+#pragma pack(push, 1)
+    union {
+        u32 w[GPUREG_MAX];
+        struct {
+            union {
+                u32 w[0x40];
+            } misc;
+            union {
+                u32 w[0x40];
+            } raster;
+            union {
+                u32 w[0x80];
+            } tex;
+            union {
+                u32 w[0x40];
+            } fb;
+            union {
+                u32 w[0xc0];
+            } frag;
+            union {
+                struct {
+                    u32 attr_base;
+                    struct {
+                        u64 attr_format : 48;
+                        u64 fixed_attr_mask : 12;
+                        u64 attr_count : 4;
+                    };
+                    struct {
+                        u32 offset;
+                        struct {
+                            u64 comp : 48;
+                            u64 size : 8;
+                            u64 _unused : 4;
+                            u64 count : 4;
+                        };
+                    } attrbuf[12];
+                    struct {
+                        u32 indexoff : 31;
+                        u32 indexsize : 1;
+                    };
+                    u32 nverts;
+                    u32 config;
+                    u32 vtx_off;
+                    u32 _22b[3];
+                    u32 drawarrays;
+                    u32 drawelements;
+                    u32 _230[2];
+                    u32 fixattr_idx;
+                    u32 fixattr_data[3];
+                };
+                u32 w[0x80];
+            } geom;
+            union {
+                struct {
+                    u32 booluniform;
+                    u32 intuniform[4];
+                    u32 _285[4];
+                    u32 inconfig;
+                    struct {
+                        u32 entrypoint : 16;
+                        u32 entrypointhi : 16;
+                    };
+                    u64 permutation;
+                    u32 outmap_mask;
+                    u32 _28e;
+                    u32 codetrans_end;
+                    struct {
+                        u32 floatuniform_idx : 31;
+                        u32 floatuniform_mode : 1;
+                    };
+                    u32 floatuniform_data[8];
+                    u32 _299[2];
+                    u32 codetrans_idx;
+                    u32 codetrans_data[8];
+                    u32 _2a4;
+                    u32 opdescs_idx;
+                    u32 opdescs_data[8];
+                };
+                u32 w[0x30];
+            } sh[2];
+            u32 undoc[0x20];
+        };
+    } io;
+#pragma pack(pop)
+
+} GPU;
+
+typedef union {
+    u32 w;
+    struct {
+        u32 id : 16;
+        u32 mask : 4;
+        u32 nparams : 8;
+        u32 unused : 3;
+        u32 incmode : 1;
+    };
+} GPUCommand;
+
+enum {
+    ATTR_S8,
+    ATTR_U8,
+    ATTR_S16,
+    ATTR_F32,
+};
+
+#define PRINTFVEC(v) printf("[%f,%f,%f,%f] ", (v)[0], (v)[1], (v)[2], (v)[3])
+
+#define I2F(i)                                                                 \
+    (((union {                                                                 \
+         u32 _i;                                                               \
+         float _f;                                                             \
+     }) {i})                                                                   \
+         ._f)
+
+#define F2I(f)                                                                 \
+    (((union {                                                                 \
+         float _f;                                                             \
+         u32 _i;                                                               \
+     }) {f})                                                                   \
+         ._i)
+
+u32 f24tof32(u32 i);
+u32 f31tof32(u32 i);
+
+void gpu_clear_fb(GPU* gpu, u32 color);
+
+void gpu_run_command_list(GPU* gpu, u32* addr, u32 size);
+
+void gpu_drawarrays(GPU* gpu);
+
+#endif

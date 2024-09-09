@@ -16,6 +16,7 @@ ArmCompileFunc compile_funcs[ARM_MAX] = {
     [ARM_LEADINGZEROS] = compile_arm_leading_zeros,
     [ARM_SATARITH] = compile_arm_sat_arith,
     [ARM_PACKSAT] = compile_arm_pack_sat,
+    [ARM_PARALLELARITH] = compile_arm_parallel_arith,
     [ARM_HALFTRANS] = compile_arm_half_trans,
     [ARM_SINGLETRANS] = compile_arm_single_trans,
     [ARM_UNDEFINED] = compile_arm_undefined,
@@ -614,7 +615,31 @@ DECL_ARM_COMPILE(pack_sat) {
             lwarn("unknown xt16 at %08x", addr);
         }
     } else {
-        lwarn("unknown pack at %08x", addr);
+        if (!instr.pack_sat.h && !instr.pack_sat.s && !instr.pack_sat.u &&
+            (instr.pack_sat.shift & 1)) {
+            EMITV_STORE_REG(instr.pack_sat.rd,
+                            EMITVV(MEDIA_SEL, EMIT_LOAD_REG(instr.pack_sat.rn),
+                                   EMIT_LOAD_REG(instr.pack_sat.rm)));
+        } else if (instr.pack_sat.h && instr.pack_sat.s && !instr.pack_sat.u &&
+                   !(instr.pack_sat.shift & 1)) {
+            EMITV_STORE_REG(instr.pack_sat.rd,
+                            EMIT0V(REV, EMIT_LOAD_REG(instr.pack_sat.rm)));
+        } else {
+            lwarn("unknown pack at %08x", addr);
+        }
+    }
+    return true;
+}
+
+DECL_ARM_COMPILE(parallel_arith) {
+    if (instr.parallel_arith.u && instr.parallel_arith.op1 == 1 &&
+        instr.parallel_arith.b && instr.parallel_arith.op2 == 0) {
+        EMITV_STORE_REG(instr.parallel_arith.rd,
+                        EMITVV(MEDIA_UADD8,
+                               EMIT_LOAD_REG(instr.parallel_arith.rn),
+                               EMIT_LOAD_REG(instr.parallel_arith.rm)));
+    } else {
+        lwarn("unknown parallel arith %08x", instr.w);
     }
     return true;
 }

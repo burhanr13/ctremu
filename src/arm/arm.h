@@ -219,6 +219,19 @@ typedef union {
         u32 cond : 4;
     } pack_sat;
     struct {
+        u32 rm : 4;
+        u32 c2 : 1; // 1
+        u32 op2 : 2;
+        u32 b : 1;
+        u32 rs : 4;
+        u32 rd : 4;
+        u32 rn : 4;
+        u32 op1 : 2;
+        u32 u : 1;
+        u32 c1 : 5; // 01100
+        u32 cond : 4;
+    } parallel_arith;
+    struct {
         u32 u2 : 4;
         u32 c2 : 1; // 1
         u32 u1 : 20;
@@ -308,6 +321,7 @@ typedef enum {
     ARM_HALFTRANS,
     ARM_SINGLETRANS,
     ARM_PACKSAT,
+    ARM_PARALLELARITH,
     ARM_UNDEFINED,
     ARM_BLOCKTRANS,
     ARM_BRANCH,

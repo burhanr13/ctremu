@@ -747,6 +747,50 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 }
                 break;
             }
+            case IR_REV: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                bswap(edx);
+                mov(getOp(i), edx);
+                break;
+            }
+            case IR_MEDIA_UADD8: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                if (inst.imm1) {
+                    mov(esi, inst.op1);
+                } else {
+                    mov(esi, getOp(inst.op1));
+                }
+                mov(rdi, rbx);
+                mov(rax, (u64) media_uadd8);
+                call(rax);
+                mov(getOp(i), eax);
+                break;
+            }
+            case IR_MEDIA_SEL: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                if (inst.imm1) {
+                    mov(esi, inst.op1);
+                } else {
+                    mov(esi, getOp(inst.op1));
+                }
+                mov(rdi, rbx);
+                mov(rax, (u64) media_sel);
+                call(rax);
+                mov(getOp(i), eax);
+                break;
+            }
             case IR_GETN: {
                 auto& dest = getOp(i);
                 if (inst.imm2) {

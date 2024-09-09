@@ -1,6 +1,7 @@
 #include "ir.h"
 
 #include "jit.h"
+#include "../media.h"
 #include "../vfp.h"
 
 bool iropc_hasresult(IROpcode opc) {
@@ -50,6 +51,8 @@ bool iropc_iscallback(IROpcode opc) {
         case IR_VFP_WRITE64H:
         case IR_CP15_READ:
         case IR_CP15_WRITE:
+        case IR_MEDIA_UADD8:
+        case IR_MEDIA_SEL:
             return true;
         default:
             return false;
@@ -63,6 +66,8 @@ bool iropc_ispure(IROpcode opc) {
         case IR_ADC:
         case IR_SBC:
         case IR_GETCIFZ:
+        case IR_MEDIA_UADD8:
+        case IR_MEDIA_SEL:
             return false;
         default:
             return true;
@@ -345,6 +350,21 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
                 v[i] = ct;
                 break;
             }
+            case IR_REV: {
+                u32 x = OP(2);
+                x = (x & 0xffff0000) >> 16 | (x & 0x0000ffff) << 16;
+                x = (x & 0xff00ff00) >> 8 | (x & 0x00ff00ff) << 8;
+                v[i] = x;
+                break;
+            }
+            case IR_MEDIA_UADD8: {
+                v[i] = media_uadd8(cpu, OP(1), OP(2));
+                break;
+            }
+            case IR_MEDIA_SEL: {
+                v[i] = media_sel(cpu, OP(1), OP(2));
+                break;
+            }
             case IR_GETN:
                 v[i] = OP(2) >> 31;
                 break;
@@ -582,6 +602,12 @@ void ir_disasm_instr(IRInstr inst, int i) {
             DISASM(smulw, 1, 1, 1);
         case IR_CLZ:
             DISASM(clz, 1, 0, 1);
+        case IR_REV:
+            DISASM(rev,1,0,1);
+        case IR_MEDIA_UADD8:
+            DISASM(uadd8, 1, 1, 1);
+        case IR_MEDIA_SEL:
+            DISASM(sel, 1, 1, 1);
         case IR_GETN:
             DISASM(getn, 1, 0, 1);
         case IR_GETZ:

@@ -33,7 +33,7 @@ u32 load_elf(HLE3DS* s, char* filename) {
         if (phdrs[i].p_flags & PF_R) perm |= PERM_R;
         if (phdrs[i].p_flags & PF_W) perm |= PERM_W;
         if (phdrs[i].p_flags & PF_X) perm |= PERM_X;
-        hle3ds_vmalloc(s, phdrs[i].p_vaddr, phdrs[i].p_memsz, perm, MEMST_CODE);
+        hle3ds_vmmap(s, phdrs[i].p_vaddr, phdrs[i].p_memsz, perm, MEMST_CODE, false);
         void* segment = PTR(phdrs[i].p_vaddr);
         fseek(fp, phdrs[i].p_offset, SEEK_SET);
         if (fread(segment, 1, phdrs[i].p_filesz, fp) < phdrs[i].p_filesz) {

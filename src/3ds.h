@@ -2,7 +2,7 @@
 #define _3DS_H
 
 #include "arm/arm_core.h"
-#include "gpu.h"
+#include "pica/gpu.h"
 #include "kernel.h"
 #include "memory.h"
 #include "scheduler.h"
@@ -13,13 +13,17 @@
 #define CPU_CLK BIT(28)
 #define FPS 60
 
-#define FCRAMSIZE BIT(27)
+#define SCREEN_WIDTH 400
+#define SCREEN_HEIGHT 240
 
 typedef struct _3DS {
     ArmCore cpu;
 
     GPU gpu;
 
+    int fcram_fd;
+
+    u8* physmem;
     u8* virtmem;
 
     KernelData kernel;
@@ -37,12 +41,16 @@ typedef struct _3DS {
 
 #define PAGE_SIZE BIT(12)
 
+#define FCRAMSIZE BIT(27)
+
+#define FCRAM_PBASE BIT(29)
+
 #define HEAP_BASE BIT(27)
 
 #define STACK_BASE BIT(28)
 #define STACK_SIZE BIT(14)
 
-#define lINEAR_HEAP_BASE (BIT(28) + BIT(26))
+#define LINEAR_HEAP_BASE (BIT(28) + BIT(26))
 
 #define CONFIG_MEM 0x1ff80000
 

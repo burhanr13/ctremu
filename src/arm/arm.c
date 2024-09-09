@@ -1,9 +1,9 @@
 #include "arm.h"
 
-#include <stdlib.h>
+// #include <stdlib.h>
 
-#include "arm_core.h"
-#include "jit/jit.h"
+// #include "arm_core.h"
+// #include "jit/jit.h"
 
 ArmInstrFormat arm_lookup[BIT(8)][BIT(4)];
 
@@ -55,6 +55,8 @@ ArmInstrFormat arm_decode_instr(ArmInstr instr) {
         return ARM_BLOCKTRANS;
     } else if (instr.pack_sat.c1 == 0b01101 && instr.pack_sat.c2 == 1) {
         return ARM_PACKSAT;
+    } else if (instr.parallel_arith.c1 == 0b01100 && instr.parallel_arith.c2 == 1) {
+        return ARM_PARALLELARITH;
     } else if (instr.undefined.c1 == 0b011 && instr.undefined.c2 == 1) {
         return ARM_UNDEFINED;
     } else if (instr.single_trans.c1 == 0b01) {

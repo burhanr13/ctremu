@@ -30,11 +30,11 @@ void hle3ds_init(HLE3DS* s, char* romfile) {
         exit(1);
     }
 
-    hle3ds_vmalloc(s, STACK_BASE - STACK_SIZE, STACK_SIZE, PERM_RW,
-                   MEMST_PRIVATE);
+    hle3ds_vmmap(s, STACK_BASE - STACK_SIZE, STACK_SIZE, PERM_RW,
+                 MEMST_PRIVATE, false);
 
-    hle3ds_vmalloc(s, CONFIG_MEM, PAGE_SIZE, PERM_R, MEMST_STATIC);
-    hle3ds_vmalloc(s, TLS_BASE, TLS_SIZE * MAX_RES, PERM_RW, MEMST_PRIVATE);
+    hle3ds_vmmap(s, CONFIG_MEM, PAGE_SIZE, PERM_R, MEMST_STATIC, false);
+    hle3ds_vmmap(s, TLS_BASE, TLS_SIZE * MAX_RES, PERM_RW, MEMST_PRIVATE, false);
 
     init_services(s);
 

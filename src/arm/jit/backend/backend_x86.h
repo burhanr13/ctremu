@@ -9,6 +9,7 @@ extern "C" {
 #include "../jit.h"
 #include "../register_allocator.h"
 #include "../../arm_core.h"
+#include "../../media.h"
 #include "../../vfp.h"
 
 void* generate_code_x86(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu);

@@ -164,10 +164,10 @@ bool jit_isdirty(ArmCore* cpu, u32 start, u32 end) {
     if (start >= end) return false;
     end -= 1;
     u32 sthi = start >> 16;
-    u32 stbyte = (start >> 9) & 0x7f;
+    u32 stbyte = (start >> 9) & MASK(7);
     u32 stbit = (start >> 6) & 7;
     u32 endhi = end >> 16;
-    u32 endbyte = (end >> 9) & 0x7f;
+    u32 endbyte = (end >> 9) & MASK(7);
     u32 endbit = (end >> 6) & 7;
 
     bool wasdirty = 0;

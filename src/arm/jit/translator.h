@@ -27,6 +27,7 @@ DECL_ARM_COMPILE(sat_arith);
 DECL_ARM_COMPILE(half_trans);
 DECL_ARM_COMPILE(single_trans);
 DECL_ARM_COMPILE(pack_sat);
+DECL_ARM_COMPILE(parallel_arith);
 DECL_ARM_COMPILE(undefined);
 DECL_ARM_COMPILE(block_trans);
 DECL_ARM_COMPILE(branch);

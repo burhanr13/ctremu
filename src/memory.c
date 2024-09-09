@@ -15,23 +15,47 @@
 void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     u8* addr = info->si_addr;
     if (ctremu.system.virtmem <= addr && addr < ctremu.system.virtmem + BITL(32)) {
-        lerror("(FATAL) invalid 3DS memory access at %08x (pc near %08x)",
-               addr - ctremu.system.virtmem, ctremu.system.cpu.pc);
+        lerror(
+            "(FATAL) invalid 3DS virtual memory access at %08x (pc near %08x)",
+            addr - ctremu.system.virtmem, ctremu.system.cpu.pc);
+        exit(1);
+    }
+    if (ctremu.system.physmem <= addr &&
+        addr < ctremu.system.physmem + BITL(32)) {
+        lerror("(FATAL) invalid 3DS physical memory access at %08x",
+               addr - ctremu.system.physmem);
         exit(1);
     }
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
 }
 
 void hle3ds_memory_init(HLE3DS* s) {
+    s->physmem = mmap(NULL, BITL(32), PROT_NONE,
+                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
     s->virtmem = mmap(NULL, BITL(32), PROT_NONE,
                       MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
-    if (s->virtmem == MAP_FAILED) {
+    if (s->physmem == MAP_FAILED || s->virtmem == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
+    s->gpu.mem = s->physmem;
+
     struct sigaction sa = {.sa_sigaction = sigsegv_handler,
                            .sa_flags = SA_SIGINFO};
     sigaction(SIGSEGV, &sa, NULL);
+
+    s->fcram_fd = memfd_create("fcram", 0);
+    if (s->fcram_fd < 0 || ftruncate(s->fcram_fd, FCRAMSIZE) < 0) {
+        perror("memfd_create");
+        exit(1);
+    }
+    void* ptr =
+        mmap(&s->physmem[FCRAM_PBASE], FCRAMSIZE, PROT_READ | PROT_WRITE,
+             MAP_SHARED | MAP_FIXED, s->fcram_fd, 0);
+    if (ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
 
     VMBlock* initblk = malloc(sizeof(VMBlock));
     *initblk = (VMBlock){
@@ -123,7 +147,8 @@ void print_vmblocks(VMBlock* vmblocks) {
     printf("\n");
 }
 
-void hle3ds_vmalloc(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state) {
+void hle3ds_vmmap(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state,
+                  bool linear) {
     base = base & ~(PAGE_SIZE - 1);
     size = (size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
     if (!size) return;
@@ -135,14 +160,21 @@ void hle3ds_vmalloc(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state) {
                    .state = state};
     insert_vmblock(s, n);
 
-    void* ptr = mmap(&s->virtmem[base], size, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+    void* ptr;
+    if (linear) {
+        ptr = mmap(&s->virtmem[base], size, PROT_READ | PROT_WRITE,
+                   MAP_SHARED | MAP_FIXED, s->fcram_fd, 0);
+    } else {
+        ptr = mmap(&s->virtmem[base], size, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+    }
     if (ptr == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
     s->kernel.used_memory += size;
-    linfo("mapped 3DS virtual memory at %08x with size 0x%x, perm %d, state %d",
+    linfo("mapped 3DS virtual memory at %08x with size 0x%x, perm %d, "
+          "state %d",
           base, size, perm, state);
 }
 

@@ -11,9 +11,15 @@
 
 #define eprintf(format, ...) fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__)
 
+#define NOINFO
+
+#ifndef NOINFO
 #define linfo(format, ...)                                                     \
     printf("\e[32m[INFO](%s) " format "\e[0m\n",                               \
            __func__ __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define linfo(format, ...)
+#endif
 #define lwarn(format, ...)                                                     \
     printf("\e[33m[WARNING](%s) " format "\e[0m\n",                           \
             __func__ __VA_OPT__(, ) __VA_ARGS__)
@@ -32,6 +38,8 @@ typedef int64_t s64;
 
 #define BIT(n) (1U << (n))
 #define BITL(n) (1UL << (n))
+#define MASK(n) (BIT(n) - 1)
+#define MASKL(n) (BITL(n) - 1)
 
 #define FIFO(T, N)                                                             \
     struct {                                                                   \

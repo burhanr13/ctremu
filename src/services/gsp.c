@@ -1,6 +1,6 @@
 #include "gsp.h"
 
-#include "../gpu.h"
+#include "../pica/gpu.h"
 #include "../scheduler.h"
 #include "../svc.h"
 
@@ -117,6 +117,9 @@ void gsp_handle_command(HLE3DS* s) {
                 if (cmd->buf[i].st) {
                     linfo("memory fill at fb %08x-%08x with %x", cmd->buf[i].st,
                           cmd->buf[i].end, cmd->buf[i].val);
+                    if (i == 0) {
+                        gpu_clear_fb(&s->gpu, cmd->buf[i].val);
+                    }
                     gsp_handle_event(s, GSPEVENT_PSC0 + i);
                 }
             }

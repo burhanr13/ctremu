@@ -82,6 +82,10 @@ typedef enum {
     IR_UMULH,
     IR_SMULW,
     IR_CLZ,
+    IR_REV,
+
+    IR_MEDIA_UADD8,
+    IR_MEDIA_SEL,
 
     IR_GETN,
     IR_GETZ,
