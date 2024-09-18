@@ -3,17 +3,23 @@ TARGET_EXEC := ctremu
 CC := gcc
 CXX := g++
 
+CSTD := -std=gnu17
+CXXSTD := -std=gnu++20
 CFLAGS := -Wall -Wimplicit-fallthrough -Wno-format -Wno-unused-variable -Werror
 CFLAGS_RELEASE := -O3 -flto
 CFLAGS_DEBUG := -g -fsanitize=address
 
-CPPFLAGS := -MP -MMD -D_GNU_SOURCE
+CPPFLAGS := -MP -MMD
 
-LDFLAGS := -lm -lSDL2 -lGL -lGLEW -lreadline -lcapstone
+LDFLAGS := -lm -lSDL2 -lreadline -lcapstone
 
 ifeq ($(shell uname),Darwin)
-	CPPFLAGS += -I$(shell brew --prefix)/include
-	LDFLAGS := -L$(shell brew --prefix)/lib $(LDFLAGS)
+	CFLAGS += -arch x86_64
+	CPPFLAGS += -I/opt/homebrew/include
+	LDFLAGS := -L/usr/local/lib -L/opt/homebrew/lib $(LDFLAGS)
+	LDFLAGS += -framework OpenGL -lGLEW
+else
+	LDFLAGS += -lGL -lGLEW
 endif
 
 BUILD_DIR := build
@@ -47,11 +53,11 @@ $(RELEASE_DIR)/$(TARGET_EXEC): $(OBJS_RELEASE)
 
 $(RELEASE_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CSTD) $(CFLAGS) -c $< -o $@
 
 $(RELEASE_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXSTD) $(CFLAGS) -c $< -o $@
 
 $(DEBUG_DIR)/$(TARGET_EXEC): $(OBJS_DEBUG)
 	$(CXX) -o $@ $(CFLAGS) $(CPPFLAGS) $^ $(LDFLAGS)
@@ -59,11 +65,11 @@ $(DEBUG_DIR)/$(TARGET_EXEC): $(OBJS_DEBUG)
 
 $(DEBUG_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CSTD) $(CFLAGS) -c $< -o $@
 
 $(DEBUG_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXSTD) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET_EXEC) $(TARGET_EXEC)d

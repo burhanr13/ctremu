@@ -30,6 +30,7 @@ int run_next_event(Scheduler* sched) {
             gsp_handle_event(sched->master, e.arg);
             break;
         default:
+            break;
     }
 
     return sched->now - e.time;

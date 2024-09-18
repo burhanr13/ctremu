@@ -1,5 +1,6 @@
 #include "memory.h"
 
+#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,15 @@
 #include "emulator_state.h"
 #include "svc_types.h"
 #include "types.h"
+
+#ifdef __APPLE__
+#define memfd_create(name, x)                                                  \
+    ({                                                                         \
+        int fd = open(name, O_RDWR | O_CREAT);                       \
+        unlink(name);                                                          \
+        fd;                                                                    \
+    })
+#endif
 
 void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     u8* addr = info->si_addr;
@@ -44,7 +54,7 @@ void hle3ds_memory_init(HLE3DS* s) {
                            .sa_flags = SA_SIGINFO};
     sigaction(SIGSEGV, &sa, NULL);
 
-    s->fcram_fd = memfd_create("fcram", 0);
+    s->fcram_fd = memfd_create(".fcram", 0);
     if (s->fcram_fd < 0 || ftruncate(s->fcram_fd, FCRAMSIZE) < 0) {
         perror("memfd_create");
         exit(1);
@@ -77,6 +87,8 @@ void hle3ds_memory_destroy(HLE3DS* s) {
 
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
     munmap(s->virtmem, BITL(32));
+
+    close(s->fcram_fd);
 }
 
 void insert_vmblock(HLE3DS* s, VMBlock* n) {

@@ -1,6 +1,6 @@
 #include "gpu_gl.h"
 
-#include "glshader.inc"
+#include "hostshaders/hostshaders.h"
 
 void gpu_gl_setup() {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -39,7 +39,7 @@ void gpu_gl_setup() {
     glDeleteShader(fragmentShader);
 
     glUseProgram(program);
-    
+
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);

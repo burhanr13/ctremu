@@ -208,8 +208,8 @@ void load_vtx(GPU* gpu, int i) {
 }
 
 void store_vtx(GPU* gpu, int i, Vertex* vbuf) {
-    vbuf[i].pos[0] = gpu->out[0][1];
-    vbuf[i].pos[1] = gpu->out[0][0];
+    vbuf[i].pos[0] = gpu->out[0][0];
+    vbuf[i].pos[1] = gpu->out[0][1];
     vbuf[i].pos[2] = gpu->out[0][2];
     vbuf[i].pos[3] = gpu->out[0][3];
     vbuf[i].color[0] = gpu->out[1][0];
