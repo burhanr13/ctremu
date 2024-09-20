@@ -39,9 +39,9 @@ u32 f31tof32(u32 i) {
 }
 
 void gpu_clear_fb(GPU* gpu, u32 color) {
-    // glClearColor((color >> 24) / 256.f, ((color >> 16) & 0xff) / 256.f,
-    //              ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor((color >> 24) / 256.f, ((color >> 16) & 0xff) / 256.f,
+                ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void gpu_write_internalreg(GPU* gpu, u16 id, u32 param, u32 mask) {
@@ -227,38 +227,11 @@ void store_vtx(GPU* gpu, int i, Vertex* vbuf) {
 void gpu_drawarrays(GPU* gpu) {
     if (gpu->io.geom.nverts == 6) return;
 
-    printf("drawing arrays (%d verts)\n", gpu->io.geom.nverts);
-    printf("some regs: ");
-    for (int i = 0x200; i < 0x210; i++) {
-        printf("%08x ", gpu->io.w[i]);
-    }
-    printf("\n");
-    printf("c94=");
-    PRINTFVEC(gpu->cst[94]);
-    printf("\n");
-    printf("c95=");
-    PRINTFVEC(gpu->cst[95]);
-    printf("\n");
-    disasm_vshader(gpu);
     Vertex vbuf[gpu->io.geom.nverts];
     for (int i = 0; i < gpu->io.geom.nverts; i++) {
-        printf("inattr: ");
-        for (int i = 0; i < gpu->io.geom.attr_count; i++) {
-            PRINTFVEC(gpu->in[i]);
-        }
-        printf("\n");
         load_vtx(gpu, i + gpu->io.geom.vtx_off);
         exec_vshader(gpu);
         store_vtx(gpu, i, vbuf);
-        printf("outattr: ");
-        for (int i = 0; i < 3; i++) {
-            PRINTFVEC(gpu->out[i]);
-        }
-        printf("\n");
-        printf("vtx: ");
-        PRINTFVEC(vbuf[i].pos);
-        PRINTFVEC(vbuf[i].color);
-        printf("\n");
     }
     glBufferData(GL_ARRAY_BUFFER, gpu->io.geom.nverts * sizeof(Vertex), vbuf,
                  GL_STREAM_DRAW);
