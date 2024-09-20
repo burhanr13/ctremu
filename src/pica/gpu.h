@@ -2,6 +2,7 @@
 #define GPU_H
 
 #include "../types.h"
+#include "shader.h"
 
 #define GPUREG(r) ((offsetof(GPU, io.r) - offsetof(GPU, io)) >> 2)
 #define GPUREG_MAX 0x300
@@ -9,17 +10,31 @@
 #define VSH sh[1]
 
 typedef float fvec[4];
+typedef float fvec2[2];
 
-typedef struct {
-    fvec pos;
-    fvec color;
+typedef union {
+    float semantics[24];
+    struct {
+        fvec pos;
+        fvec normquat;
+        fvec color;
+        fvec2 texcoord0;
+        fvec2 texcoord1;
+        float texcoordw;
+        float _pad;
+        fvec view;
+        fvec2 texcoord2;
+    };
 } Vertex;
 
-typedef struct {
+typedef struct _GPU {
 
     u8* mem;
 
-    u32 progdata[BIT(12)];
+    union {
+        u32 progdata[BIT(12)];
+        PICAInstr code[BIT(12)];
+    };
     u32 opdescs[128];
     u32 sh_idx;
 
@@ -34,6 +49,9 @@ typedef struct {
     fvec in[16];
     fvec out[16];
     fvec reg[16];
+    u32 addr[2];
+    u32 loopct;
+    bool cmp[2];
 
 #pragma pack(push, 1)
     union {
@@ -43,6 +61,10 @@ typedef struct {
                 u32 w[0x40];
             } misc;
             union {
+                struct {
+                    u32 _040[16];
+                    u8 sh_outmap[7][4];
+                };
                 u32 w[0x40];
             } raster;
             union {
@@ -90,7 +112,12 @@ typedef struct {
             union {
                 struct {
                     u32 booluniform;
-                    u32 intuniform[4];
+                    struct {
+                        u8 x;
+                        u8 y;
+                        u8 z;
+                        u8 unused;
+                    } intuniform[4];
                     u32 _285[4];
                     u32 inconfig;
                     struct {

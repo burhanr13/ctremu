@@ -36,7 +36,7 @@ void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
                addr - ctremu.system.physmem);
         exit(1);
     }
-    sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
+    sigaction(sig, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
 }
 
 void hle3ds_memory_init(HLE3DS* s) {
@@ -53,6 +53,7 @@ void hle3ds_memory_init(HLE3DS* s) {
     struct sigaction sa = {.sa_sigaction = sigsegv_handler,
                            .sa_flags = SA_SIGINFO};
     sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
 
     s->fcram_fd = memfd_create(".fcram", 0);
     if (s->fcram_fd < 0 || ftruncate(s->fcram_fd, FCRAMSIZE) < 0) {
@@ -86,6 +87,8 @@ void hle3ds_memory_destroy(HLE3DS* s) {
     }
 
     sigaction(SIGSEGV, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
+    sigaction(SIGBUS, &(struct sigaction){.sa_handler = SIG_DFL}, NULL);
+
     munmap(s->virtmem, BITL(32));
 
     close(s->fcram_fd);

@@ -3,7 +3,7 @@
 
 #include "3ds.h"
 #include "emulator.h"
-#include "pica/gpu_gl.h"
+#include "pica/renderer_gl.h"
 
 char wintitle[200];
 
@@ -27,9 +27,7 @@ int main(int argc, char** argv) {
     }
     glewInit();
 
-    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-    gpu_gl_setup();
+    renderer_gl_setup();
 
     Uint64 prev_time = SDL_GetPerformanceCounter();
     Uint64 prev_fps_update = prev_time;

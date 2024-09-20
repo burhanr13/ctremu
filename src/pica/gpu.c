@@ -1,6 +1,6 @@
 #include "gpu.h"
 
-#include "gpu_gl.h"
+#include "renderer_gl.h"
 
 #include "shader.h"
 
@@ -39,9 +39,9 @@ u32 f31tof32(u32 i) {
 }
 
 void gpu_clear_fb(GPU* gpu, u32 color) {
-    glClearColor((color >> 24) / 256.f, ((color >> 16) & 0xff) / 256.f,
-                 ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    // glClearColor((color >> 24) / 256.f, ((color >> 16) & 0xff) / 256.f,
+    //              ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void gpu_write_internalreg(GPU* gpu, u16 id, u32 param, u32 mask) {
@@ -170,7 +170,7 @@ void load_vtx(GPU* gpu, int i) {
                 case ATTR_S8: {
                     s8* ptr = vtx;
                     for (int k = 0; k < size; k++) {
-                        gpu->in[attr][k] = (float) *ptr++ / (INT8_MAX + 1);
+                        gpu->in[attr][k] = *ptr++;
                     }
                     vtx = ptr;
                     break;
@@ -178,7 +178,7 @@ void load_vtx(GPU* gpu, int i) {
                 case ATTR_U8: {
                     u8* ptr = vtx;
                     for (int k = 0; k < size; k++) {
-                        gpu->in[attr][k] = (float) *ptr++ / (UINT8_MAX + 1);
+                        gpu->in[attr][k] = *ptr++;
                     }
                     vtx = ptr;
                     break;
@@ -186,7 +186,7 @@ void load_vtx(GPU* gpu, int i) {
                 case ATTR_S16: {
                     s16* ptr = vtx;
                     for (int k = 0; k < size; k++) {
-                        gpu->in[attr][k] = (float) *ptr++ / (INT16_MAX + 1);
+                        gpu->in[attr][k] = *ptr++;
                     }
                     vtx = ptr;
                     break;
@@ -212,18 +212,53 @@ void store_vtx(GPU* gpu, int i, Vertex* vbuf) {
     vbuf[i].pos[1] = gpu->out[0][1];
     vbuf[i].pos[2] = gpu->out[0][2];
     vbuf[i].pos[3] = gpu->out[0][3];
-    vbuf[i].color[0] = gpu->out[1][0];
-    vbuf[i].color[1] = gpu->out[1][1];
-    vbuf[i].color[2] = gpu->out[1][2];
-    vbuf[i].color[3] = gpu->out[1][3];
+    vbuf[i].color[0] = gpu->out[2][0];
+    vbuf[i].color[1] = gpu->out[2][1];
+    vbuf[i].color[2] = gpu->out[2][2];
+    vbuf[i].color[3] = gpu->out[2][3];
+    for (int o = 0; o < 7; o++) {
+        for (int j = 0; j < 4; j++) {
+            u8 sem = gpu->io.raster.sh_outmap[o][j];
+            if (sem < 0x18) vbuf[i].semantics[sem] = gpu->out[o][j];
+        }
+    }
 }
 
 void gpu_drawarrays(GPU* gpu) {
+    if (gpu->io.geom.nverts == 6) return;
+
+    printf("drawing arrays (%d verts)\n", gpu->io.geom.nverts);
+    printf("some regs: ");
+    for (int i = 0x200; i < 0x210; i++) {
+        printf("%08x ", gpu->io.w[i]);
+    }
+    printf("\n");
+    printf("c94=");
+    PRINTFVEC(gpu->cst[94]);
+    printf("\n");
+    printf("c95=");
+    PRINTFVEC(gpu->cst[95]);
+    printf("\n");
+    disasm_vshader(gpu);
     Vertex vbuf[gpu->io.geom.nverts];
     for (int i = 0; i < gpu->io.geom.nverts; i++) {
+        printf("inattr: ");
+        for (int i = 0; i < gpu->io.geom.attr_count; i++) {
+            PRINTFVEC(gpu->in[i]);
+        }
+        printf("\n");
         load_vtx(gpu, i + gpu->io.geom.vtx_off);
         exec_vshader(gpu);
         store_vtx(gpu, i, vbuf);
+        printf("outattr: ");
+        for (int i = 0; i < 3; i++) {
+            PRINTFVEC(gpu->out[i]);
+        }
+        printf("\n");
+        printf("vtx: ");
+        PRINTFVEC(vbuf[i].pos);
+        PRINTFVEC(vbuf[i].color);
+        printf("\n");
     }
     glBufferData(GL_ARRAY_BUFFER, gpu->io.geom.nverts * sizeof(Vertex), vbuf,
                  GL_STREAM_DRAW);

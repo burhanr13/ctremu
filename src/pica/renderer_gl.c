@@ -1,8 +1,9 @@
-#include "gpu_gl.h"
+#include "renderer_gl.h"
 
+#include "../3ds.h"
 #include "hostshaders/hostshaders.h"
 
-void gpu_gl_setup() {
+void renderer_gl_setup() {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vtxshadersrc, NULL);
     glCompileShader(vertexShader);
@@ -39,6 +40,9 @@ void gpu_gl_setup() {
     glDeleteShader(fragmentShader);
 
     glUseProgram(program);
+
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    //glEnable(GL_DEPTH_TEST);
 
     GLuint vao;
     glGenVertexArrays(1, &vao);

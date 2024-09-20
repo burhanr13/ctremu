@@ -50,9 +50,10 @@ typedef struct _3DS {
 #define STACK_BASE BIT(28)
 #define STACK_SIZE BIT(14)
 
-#define LINEAR_HEAP_BASE (BIT(28) + BIT(26))
+#define LINEAR_HEAP_BASE 0x14000000
 
 #define CONFIG_MEM 0x1ff80000
+#define SHARED_PAGE 0x1ff81000
 
 #define TLS_BASE 0x1ff82000
 #define TLS_SIZE 0x200

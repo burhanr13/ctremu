@@ -8,6 +8,7 @@ typedef struct _3DS HLE3DS;
 enum {
     SRV_SRV,
     SRV_GSP_GPU,
+    SRV_HID,
 
     SRV_MAX
 };

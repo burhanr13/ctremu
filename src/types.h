@@ -24,7 +24,7 @@
     printf("\e[33m[WARNING](%s) " format "\e[0m\n",                           \
             __func__ __VA_OPT__(, ) __VA_ARGS__)
 #define lerror(format, ...)                                                    \
-    printf("\e[31m[ERROR](%s) " format "\e[0m\n",                             \
+    printf("\e[41m[ERROR](%s) " format "\e[0m\n",                             \
             __func__ __VA_OPT__(, ) __VA_ARGS__)
 
 typedef uint8_t u8;

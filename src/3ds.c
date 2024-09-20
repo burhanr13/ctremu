@@ -34,6 +34,8 @@ void hle3ds_init(HLE3DS* s, char* romfile) {
                  MEMST_PRIVATE, false);
 
     hle3ds_vmmap(s, CONFIG_MEM, PAGE_SIZE, PERM_R, MEMST_STATIC, false);
+    hle3ds_vmmap(s, SHARED_PAGE, PAGE_SIZE, PERM_R, MEMST_STATIC, false);
+
     hle3ds_vmmap(s, TLS_BASE, TLS_SIZE * MAX_RES, PERM_RW, MEMST_PRIVATE, false);
 
     init_services(s);
