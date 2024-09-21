@@ -225,8 +225,6 @@ void store_vtx(GPU* gpu, int i, Vertex* vbuf) {
 }
 
 void gpu_drawarrays(GPU* gpu) {
-    if (gpu->io.geom.nverts == 6) return;
-
     Vertex vbuf[gpu->io.geom.nverts];
     for (int i = 0; i < gpu->io.geom.nverts; i++) {
         load_vtx(gpu, i + gpu->io.geom.vtx_off);

@@ -4,6 +4,8 @@
 
 #include "svc.h"
 
+#include "services/apt.h"
+#include "services/fs.h"
 #include "services/gsp.h"
 #include "services/hid.h"
 
@@ -22,6 +24,7 @@ void services_handle_request(HLE3DS* s, u32 srv, IPCHeader cmd, u32 cmd_addr) {
 }
 
 DECL_SRV(srv) {
+#define IS(_name) (!strcmp(name, _name))
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
         case 0x0005: {
@@ -31,15 +34,21 @@ DECL_SRV(srv) {
             cmd_params[0] = MAKE_IPCHEADER(3, 0);
             cmd_params[1] = 0;
 
-            if (!strcmp(name, "gsp::Gpu")) {
-                cmd_params[3] = MAKE_HANDLE(HANDLE_SESSION, SRV_GSP_GPU);
-            } else if (!strcmp(name, "hid:USER") || !strcmp(name, "hid:SPVR")) {
-                cmd_params[3] = MAKE_HANDLE(HANDLE_SESSION, SRV_HID);
+            u32 srvid;
+            if (IS("APT:U") || IS("APT:A") || IS("APT:S")) {
+                srvid = SRV_APT;
+            } else if (IS("fs:USER")) {
+                srvid = SRV_FS;
+            } else if (IS("gsp::Gpu")) {
+                srvid = SRV_GSP_GPU;
+            } else if (IS("hid:USER") || IS("hid:SPVR")) {
+                srvid = SRV_HID;
             } else {
                 lerror("unknown service '%s'", name);
                 cmd_params[1] = -1;
             }
             if (cmd_params[1] == 0) {
+                cmd_params[3] = MAKE_HANDLE(HANDLE_SESSION, srvid);
                 linfo("connected to service '%s'", name);
             }
             break;
@@ -48,10 +57,11 @@ DECL_SRV(srv) {
             lwarn("unknown command 0x%04x", cmd.command);
             break;
     }
+#undef IS
 }
 
 SRVFunc srv_funcs[SRV_MAX] = {
-    [SRV_SRV] = srv_handle_srv,
-    [SRV_GSP_GPU] = srv_handle_gsp_gpu,
+    [SRV_SRV] = srv_handle_srv, [SRV_APT] = srv_handle_apt,
+    [SRV_FS] = srv_handle_fs,   [SRV_GSP_GPU] = srv_handle_gsp_gpu,
     [SRV_HID] = srv_handle_hid,
 };

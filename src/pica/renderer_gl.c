@@ -42,7 +42,7 @@ void renderer_gl_setup() {
     glUseProgram(program);
 
     glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
 
     GLuint vao;
     glGenVertexArrays(1, &vao);

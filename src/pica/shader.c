@@ -157,6 +157,30 @@ u32 exec_instr(GPU* gpu, u32 pc, bool* end) {
             DEST(res, 1);
             break;
         }
+        case PICA_SGE: {
+            fvec a, b;
+            SRC1(a, 1);
+            SRC2(b, 1);
+            fvec res;
+            res[0] = a[0] >= b[0];
+            res[1] = a[1] >= b[1];
+            res[2] = a[2] >= b[2];
+            res[3] = a[3] >= b[3];
+            DEST(res, 1);
+            break;
+        }
+        case PICA_SLT: {
+            fvec a, b;
+            SRC1(a, 1);
+            SRC2(b, 1);
+            fvec res;
+            res[0] = a[0] < b[0];
+            res[1] = a[1] < b[1];
+            res[2] = a[2] < b[2];
+            res[3] = a[3] < b[3];
+            DEST(res, 1);
+            break;
+        }
         case PICA_MAX: {
             fvec a, b;
             SRC1(a, 1);
@@ -179,6 +203,14 @@ u32 exec_instr(GPU* gpu, u32 pc, bool* end) {
             res[2] = fminf(a[2], b[2]);
             res[3] = fminf(a[3], b[3]);
             DEST(res, 1);
+            break;
+        }
+        case PICA_RCP: {
+            fvec a;
+            SRC1(a, 1);
+            fvec res;
+            res[0] = 1 / a[0];
+            res[1] = res[2] = res[3] = res[0];
             break;
         }
         case PICA_RSQ: {
@@ -263,6 +295,21 @@ u32 exec_instr(GPU* gpu, u32 pc, bool* end) {
                 gpu->loopct += gpu->io.VSH.intuniform[instr.fmt3.c].z;
             }
             pc = instr.fmt3.dest + 1;
+            break;
+        }
+        case PICA_JMPC:
+        case PICA_JMPU: {
+            bool cond;
+            if (instr.opcode == PICA_CALLC) {
+                cond = condop(instr.fmt2.op, gpu->cmp[0], gpu->cmp[1],
+                              instr.fmt2.refx, instr.fmt2.refy);
+            } else {
+                cond = gpu->io.VSH.booluniform & BIT(instr.fmt3.c);
+                if (instr.fmt3.num & 1) cond = !cond;
+            }
+            if (cond) {
+                pc = instr.fmt3.dest;
+            }
             break;
         }
         case PICA_CMP ... PICA_CMP + 1: {
@@ -468,10 +515,16 @@ u32 disasm_instr(GPU* gpu, u32 pc) {
             DISASMFMT1I(dst);
         case PICA_MUL:
             DISASMFMT1(mul);
+        case PICA_SGE:
+            DISASMFMT1(sge);
+        case PICA_SLT:
+            DISASMFMT1(slt);
         case PICA_MAX:
             DISASMFMT1(max);
         case PICA_MIN:
             DISASMFMT1(min);
+        case PICA_RCP:
+            DISASMFMT1U(rcp);
         case PICA_RSQ:
             DISASMFMT1U(rsq);
         case PICA_MOVA:
@@ -513,7 +566,7 @@ u32 disasm_instr(GPU* gpu, u32 pc) {
             } else {
                 printf("call ");
             }
-            printf("%03x", instr.fmt2.dest);
+            printf("proc_%03x", instr.fmt2.dest);
             bool found = false;
             Vec_foreach(c, disasm.calls) {
                 if (c->fmt2.dest == instr.fmt2.dest) {
@@ -562,6 +615,19 @@ u32 disasm_instr(GPU* gpu, u32 pc) {
             }
             printf("end loop");
             pc = instr.fmt3.dest + 1;
+            break;
+        }
+        case PICA_JMPC:
+        case PICA_JMPU: {
+            if (instr.opcode == PICA_JMPU) {
+                printf("jmpu %s b%d, ", (instr.fmt2.num & 1) ? "not" : "",
+                       instr.fmt3.c);
+            } else {
+                printf("jmpc ");
+                disasmcondop(instr.fmt2.op, instr.fmt2.refx, instr.fmt2.refy);
+                printf(", ");
+            }
+            printf("%03x", instr.fmt2.dest);
             break;
         }
         case PICA_CMP ... PICA_CMP + 1: {
@@ -619,6 +685,12 @@ void disasm_block(GPU* gpu, u32 start, u32 num) {
 }
 
 void disasm_vshader(GPU* gpu) {
+    printf("const fvec c95 = ");
+    PRINTFVEC(gpu->cst[95]);
+    printf("\n");
+    printf("const fvec c94 = ");
+    PRINTFVEC(gpu->cst[94]);
+    printf("\n");
     disasm.depth = 0;
     Vec_init(disasm.calls);
     printf("proc main\n");
@@ -627,7 +699,7 @@ void disasm_vshader(GPU* gpu) {
     Vec_foreach(c, disasm.calls) {
         u32 start = c->fmt3.dest;
         u32 num = c->fmt3.num;
-        printf("proc proc_%x\n", start);
+        printf("proc proc_%03x\n", start);
         disasm_block(gpu, start, num);
         printf("end proc\n");
     }
