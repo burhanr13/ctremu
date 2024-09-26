@@ -28,6 +28,7 @@ void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
         lerror(
             "(FATAL) invalid 3DS virtual memory access at %08x (pc near %08x)",
             addr - ctremu.system.virtmem, ctremu.system.cpu.pc);
+        cpu_print_state(&ctremu.system.cpu);
         exit(1);
     }
     if (ctremu.system.physmem <= addr &&

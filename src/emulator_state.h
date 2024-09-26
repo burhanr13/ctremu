@@ -11,7 +11,6 @@ typedef struct {
     bool initialized;
     bool running;
     bool uncap;
-    bool bootbios;
     bool pause;
     bool mute;
 

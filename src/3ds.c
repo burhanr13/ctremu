@@ -25,18 +25,23 @@ void hle3ds_init(HLE3DS* s, char* romfile) {
     }
     if (!strcmp(ext, ".elf")) {
         entrypoint = load_elf(s, romfile);
+    } else if (!strcmp(ext, ".3ds")) {
+        entrypoint = load_ncsd(s, romfile);
     } else {
         eprintf("unsupported file format\n");
         exit(1);
     }
 
-    hle3ds_vmmap(s, STACK_BASE - STACK_SIZE, STACK_SIZE, PERM_RW,
-                 MEMST_PRIVATE, false);
+    hle3ds_vmmap(s, STACK_BASE - STACK_SIZE, STACK_SIZE, PERM_RW, MEMST_PRIVATE,
+                 false);
 
     hle3ds_vmmap(s, CONFIG_MEM, PAGE_SIZE, PERM_R, MEMST_STATIC, false);
+    ((u32*) PTR(CONFIG_MEM))[0x10] = FCRAMSIZE;
+
     hle3ds_vmmap(s, SHARED_PAGE, PAGE_SIZE, PERM_R, MEMST_STATIC, false);
 
-    hle3ds_vmmap(s, TLS_BASE, TLS_SIZE * MAX_RES, PERM_RW, MEMST_PRIVATE, false);
+    hle3ds_vmmap(s, TLS_BASE, TLS_SIZE * MAX_RES, PERM_RW, MEMST_PRIVATE,
+                 false);
 
     init_services(s);
 

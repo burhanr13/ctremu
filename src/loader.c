@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include "filesystems.h"
 #include "svc_types.h"
 
 u32 load_elf(HLE3DS* s, char* filename) {
@@ -33,7 +34,8 @@ u32 load_elf(HLE3DS* s, char* filename) {
         if (phdrs[i].p_flags & PF_R) perm |= PERM_R;
         if (phdrs[i].p_flags & PF_W) perm |= PERM_W;
         if (phdrs[i].p_flags & PF_X) perm |= PERM_X;
-        hle3ds_vmmap(s, phdrs[i].p_vaddr, phdrs[i].p_memsz, perm, MEMST_CODE, false);
+        hle3ds_vmmap(s, phdrs[i].p_vaddr, phdrs[i].p_memsz, perm, MEMST_CODE,
+                     false);
         void* segment = PTR(phdrs[i].p_vaddr);
         fseek(fp, phdrs[i].p_offset, SEEK_SET);
         if (fread(segment, 1, phdrs[i].p_filesz, fp) < phdrs[i].p_filesz) {
@@ -48,4 +50,116 @@ u32 load_elf(HLE3DS* s, char* filename) {
 
     fclose(fp);
     return ehdr.e_entry;
+}
+
+u32 load_ncsd(HLE3DS* s, char* filename) {
+    FILE* fp = fopen(filename, "rb");
+    if (!fp) return -1;
+
+    NCSDHeader hdr;
+    fread(&hdr, sizeof hdr, 1, fp);
+
+    u32 base = hdr.part[0].offset * 0x200;
+
+    fseek(fp, base, SEEK_SET);
+
+    NCCHHeader hdr2;
+    fread(&hdr2, sizeof hdr2, 1, fp);
+
+    ExHeader exhdr;
+    fread(&exhdr, sizeof exhdr, 1, fp);
+
+    linfo("loading code from exefs");
+
+    base += hdr2.exefs.offset * 0x200;
+
+    fseek(fp, base, SEEK_SET);
+
+    ExeFSHeader hdr3;
+    fread(&hdr3, sizeof hdr3, 1, fp);
+
+    base += 0x200;
+
+    u32 codeoffset = 0;
+    u32 codesize = 0;
+    for (int i = 0; i < 10; i++) {
+        if (!strcmp(hdr3.file[i].name, ".code")) {
+            codeoffset = hdr3.file[i].offset;
+            codesize = hdr3.file[i].size;
+        }
+    }
+    if (!codesize) return -1;
+
+    u8* code = malloc(codesize);
+    fseek(fp, base + codeoffset, SEEK_SET);
+    fread(code, 1, codesize, fp);
+
+    if (exhdr.sci.flags.compressed) {
+        u8* buf = lzssrev_decompress(code, codesize, &codesize);
+        free(code);
+        code = buf;
+    }
+
+    hle3ds_vmmap(s, exhdr.sci.text.vaddr, exhdr.sci.text.pages * PAGE_SIZE,
+                 PERM_RX, MEMST_CODE, false);
+    void* text = PTR(exhdr.sci.text.vaddr);
+    memcpy(text, code, exhdr.sci.text.size);
+
+    hle3ds_vmmap(s, exhdr.sci.rodata.vaddr, exhdr.sci.rodata.pages * PAGE_SIZE,
+                 PERM_R, MEMST_CODE, false);
+    void* rodata = PTR(exhdr.sci.rodata.vaddr);
+    memcpy(rodata, code + exhdr.sci.text.pages * PAGE_SIZE,
+           exhdr.sci.rodata.size);
+
+    hle3ds_vmmap(s, exhdr.sci.data.vaddr,
+                 exhdr.sci.data.pages * PAGE_SIZE + exhdr.sci.bss, PERM_RW,
+                 MEMST_CODE, false);
+    void* data = PTR(exhdr.sci.data.vaddr);
+    memcpy(data,
+           code + exhdr.sci.text.pages * PAGE_SIZE +
+               exhdr.sci.rodata.pages * PAGE_SIZE,
+           exhdr.sci.data.size);
+
+    free(code);
+    fclose(fp);
+    return exhdr.sci.text.vaddr;
+}
+
+u8* lzssrev_decompress(u8* in, u32 src_size, u32* dst_size) {
+    *dst_size = src_size + *(u32*) &in[src_size - 4];
+    u8* out = malloc(*dst_size);
+    memcpy(out, in, src_size);
+
+    u8* src = out + src_size;
+    u8* dst = src + *(u32*) (src - 4) - 1;
+    u8* fin = src - (*(u32*) (src - 8) & MASK(24));
+    src = src - src[-5] - 1;
+
+    u8 flags;
+    int count = 0;
+    while (src > fin) {
+        if (count == 0) {
+            flags = *src--;
+            count = 8;
+        }
+        if (flags & 0x80) {
+            src--;
+            int disp = *(u16*) src;
+            src--;
+            int len = disp >> 12;
+            disp &= 0xfff;
+            len += 3;
+            disp += 3;
+            for (int i = 0; i < len; i++) {
+                *dst = dst[disp];
+                dst--;
+            }
+        } else {
+            *dst-- = *src--;
+        }
+        flags <<= 1;
+        count--;
+    }
+
+    return out;
 }

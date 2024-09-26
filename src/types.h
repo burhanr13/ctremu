@@ -11,7 +11,7 @@
 
 #define eprintf(format, ...) fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__)
 
-#define NOINFO
+//#define NOINFO
 
 #ifndef NOINFO
 #define linfo(format, ...)                                                     \
@@ -21,7 +21,7 @@
 #define linfo(format, ...)
 #endif
 #define lwarn(format, ...)                                                     \
-    printf("\e[33m[WARNING](%s) " format "\e[0m\n",                           \
+    printf("\e[43;30m[WARNING](%s) " format "\e[0m\n",                           \
             __func__ __VA_OPT__(, ) __VA_ARGS__)
 #define lerror(format, ...)                                                    \
     printf("\e[41m[ERROR](%s) " format "\e[0m\n",                             \

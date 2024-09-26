@@ -157,10 +157,13 @@ DECL_SVC(ArbitrateAddress) {
             }
             thread_reschedule(s);
             break;
+        case ARBITRATE_DEC_WAIT:
+            *(s32*) PTR(addr) -= 1;
+            __attribute__((fallthrough));
         case ARBITRATE_WAIT:
             if (*(s32*) PTR(addr) < value) {
                 Vec_push(s->kernel.addr_arbiter_thrds,
-                         ((AddressThread) {addr, s->kernel.cur_tid}));
+                         ((AddressThread){addr, s->kernel.cur_tid}));
                 CUR_THREAD.state = THRD_SLEEP;
                 linfo("waiting on address %08x", addr);
                 thread_reschedule(s);
