@@ -23,31 +23,22 @@ int run_next_event(Scheduler* sched) {
     FIFO_pop(sched->event_queue, e);
     sched->now = e.time;
 
-    linfo("executing event of type %d", e.type);
-
-    switch (e.type) {
-        case EVENT_GSP:
-            gsp_handle_event(sched->master, e.arg);
-            break;
-        default:
-            break;
-    }
+    e.handler(sched->master, e.arg);
 
     return sched->now - e.time;
 }
 
-void add_event(Scheduler* sched, EventType t, u32 event_arg, s64 reltime) {
+void add_event(Scheduler* sched, SchedEventHandler f, u32 event_arg,
+               s64 reltime) {
     if (sched->event_queue.size == EVENT_MAX) {
         lerror("event queue is full");
         return;
     }
 
-    linfo("adding event (type %d,arg %d, time %ld)", t, event_arg,
-          sched->now + reltime);
-
     FIFO_push(sched->event_queue,
-              ((SchedulerEvent){
-                  .type = t, .time = sched->now + reltime, .arg = event_arg}));
+              ((SchedulerEvent){.handler = f,
+                                .time = sched->now + reltime,
+                                .arg = event_arg}));
 
     u32 i = (sched->event_queue.tail - 1) % EVENT_MAX;
     while (i != sched->event_queue.head &&
@@ -60,9 +51,9 @@ void add_event(Scheduler* sched, EventType t, u32 event_arg, s64 reltime) {
     }
 }
 
-void remove_event(Scheduler* sched, EventType t) {
+void remove_event(Scheduler* sched, SchedEventHandler f) {
     FIFO_foreach(i, sched->event_queue) {
-        if (sched->event_queue.d[i].type == t) {
+        if (sched->event_queue.d[i].handler == f) {
             sched->event_queue.size--;
             sched->event_queue.tail = (sched->event_queue.tail - 1) % EVENT_MAX;
             for (u32 j = i; j != sched->event_queue.tail;
@@ -75,19 +66,11 @@ void remove_event(Scheduler* sched, EventType t) {
     }
 }
 
-u64 find_event(Scheduler* sched, EventType t) {
+u64 find_event(Scheduler* sched, SchedEventHandler f) {
     FIFO_foreach(i, sched->event_queue) {
-        if (sched->event_queue.d[i].type == t) {
+        if (sched->event_queue.d[i].handler == f) {
             return sched->event_queue.d[i].time;
         }
     }
     return -1;
-}
-
-void print_scheduled_events(Scheduler* sched) {
-    printf("Now: %ld\n", sched->now);
-    FIFO_foreach(i, sched->event_queue) {
-        printf("%ld => (%d,%d)", sched->event_queue.d[i].time,
-               sched->event_queue.d[i].type, sched->event_queue.d[i].arg);
-    }
 }

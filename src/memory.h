@@ -1,6 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#include "kernel.h"
 #include "types.h"
 
 typedef struct _3DS HLE3DS;
@@ -15,8 +16,11 @@ typedef struct _VMBlock {
 } VMBlock;
 
 typedef struct {
+    KObject hdr;
+
     u32 vaddr;
-} SHMemBlock;
+    bool mapped;
+} KSharedMem;
 
 void hle3ds_memory_init(HLE3DS* s);
 void hle3ds_memory_destroy(HLE3DS* s);

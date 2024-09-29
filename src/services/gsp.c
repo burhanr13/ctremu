@@ -1,14 +1,13 @@
 #include "gsp.h"
 
+#include "../kernel.h"
 #include "../pica/gpu.h"
 #include "../scheduler.h"
 #include "../svc.h"
 
-#define GSPMEM(off)                                                            \
-    PTR(s->kernel.shmemblocks.d[HANDLE_VAL(s->services.gsp.memblock)].vaddr +  \
-        off)
+#define GSPMEM(off) PTR(s->services.gsp.sharedmem.vaddr + off)
 
-DECL_SRV(gsp_gpu) {
+DECL_PORT(gsp_gpu) {
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
         case 0x0008:
@@ -22,16 +21,36 @@ DECL_SRV(gsp_gpu) {
             cmd_params[0] = MAKE_IPCHEADER(1, 0);
             cmd_params[1] = 0;
             break;
-        case 0x0013:
-            s->services.gsp.event = cmd_params[4];
-            linfo("RegisterInterruptRelayQueue with event %d",
-                  HANDLE_VAL(cmd_params[4]));
+        case 0x0013: {
             cmd_params[0] = MAKE_IPCHEADER(2, 2);
+
+            u32 shmemhandle = handle_new(s);
+            if (!shmemhandle) {
+                cmd_params[1] = -1;
+                return;
+            }
+            HANDLE_SET(shmemhandle, &s->services.gsp.sharedmem.hdr);
+            s->services.gsp.sharedmem.hdr.refcount++;
+
+            KEvent* event = HANDLE_GET_TYPED(cmd_params[3], KOT_EVENT);
+            if (!event) {
+                lerror("invalid event handle");
+                cmd_params[1] = -1;
+                return;
+            }
+
+            s->services.gsp.event = event;
+            event->hdr.refcount++;
+
+            linfo("RegisterInterruptRelayQueue with event handle=%x, "
+                  "shmemhandle=%x",
+                  cmd_params[4], shmemhandle);
             cmd_params[1] = 0;
             cmd_params[2] = 0;
             cmd_params[3] = 0;
-            cmd_params[4] = s->services.gsp.memblock;
+            cmd_params[4] = shmemhandle;
             break;
+        }
         case 0x0016:
             linfo("AcquireRight");
             cmd_params[0] = MAKE_IPCHEADER(1, 0);
@@ -47,12 +66,10 @@ DECL_SRV(gsp_gpu) {
 
 void gsp_handle_event(HLE3DS* s, u32 arg) {
     if (arg == GSPEVENT_VBLANK0) {
-        add_event(&s->sched, EVENT_GSP, GSPEVENT_VBLANK0, CPU_CLK / 60);
-        add_event(&s->sched, EVENT_GSP, GSPEVENT_VBLANK1, CPU_CLK / 60);
+        add_event(&s->sched, gsp_handle_event, GSPEVENT_VBLANK0, CPU_CLK / 60);
+        add_event(&s->sched, gsp_handle_event, GSPEVENT_VBLANK1, CPU_CLK / 60);
         s->frame_complete = true;
     }
-
-    if (s->services.gsp.event == -1) return;
 
     struct {
         u8 cur;
@@ -71,7 +88,10 @@ void gsp_handle_event(HLE3DS* s, u32 arg) {
         interrupts->count++;
     }
 
-    syncobj_signal(s, HANDLE_VAL(s->services.gsp.event));
+    if (s->services.gsp.event) {
+        linfo("signaling gsp event");
+        event_signal(s, s->services.gsp.event);
+    }
 }
 
 void gsp_handle_command(HLE3DS* s) {

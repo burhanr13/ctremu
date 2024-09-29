@@ -1,20 +1,10 @@
-#ifndef SRV_H
-#define SRV_H
+#ifndef PORT_H
+#define PORT_H
 
+#include "kernel.h"
 #include "types.h"
 
 typedef struct _3DS HLE3DS;
-
-enum {
-    SRV_SRV,
-
-    SRV_APT,
-    SRV_FS,
-    SRV_GSP_GPU,
-    SRV_HID,
-
-    SRV_MAX
-};
 
 typedef union {
     u32 w;
@@ -25,17 +15,26 @@ typedef union {
         u32 command : 16;
     };
 } IPCHeader;
+
 #define MAKE_IPCHEADER(normal, translate)                                      \
-    ((IPCHeader) {.paramsize_normal = normal,                                  \
-                  .paramsize_translate = translate}                            \
+    ((IPCHeader){.paramsize_normal = normal, .paramsize_translate = translate} \
          .w)
+
+typedef void (*PortRequestHandler)(HLE3DS* s, IPCHeader cmd, u32 cmd_addr);
+
+typedef struct {
+    KObject hdr;
+
+    PortRequestHandler handler;
+} KSession;
 
 void init_services(HLE3DS* s);
 
-void services_handle_request(HLE3DS* s, u32 srv, IPCHeader cmd, u32 cmd_addr);
+KSession* session_create(PortRequestHandler f);
 
-typedef void (*SRVFunc)(HLE3DS* s, IPCHeader cmd, u32 cmd_addr);
-#define DECL_SRV(name)                                                         \
-    void srv_handle_##name(HLE3DS* s, IPCHeader cmd, u32 cmd_addr)
+#define DECL_PORT(name)                                                        \
+    void port_handle_##name(HLE3DS* s, IPCHeader cmd, u32 cmd_addr)
+
+DECL_PORT(srv);
 
 #endif

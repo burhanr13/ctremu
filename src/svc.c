@@ -7,6 +7,13 @@
 #include "svc_types.h"
 #include "thread.h"
 
+#define MAKE_HANDLE(handle)                                                    \
+    u32 handle = handle_new(s);                                                \
+    if (!handle) {                                                             \
+        R(0) = -1;                                                             \
+        return;                                                                \
+    }
+
 void hle3ds_handle_svc(HLE3DS* s, u32 num) {
     num &= 0xff;
     if (!svc_table[num]) {
@@ -59,6 +66,8 @@ DECL_SVC(CreateThread) {
     u32 arg = R(2);
     u32 stacktop = R(3);
 
+    MAKE_HANDLE(handle);
+
     if (priority < 0 || priority >= THRD_MAX_PRIO) {
         R(0) = -1;
         return;
@@ -68,26 +77,30 @@ DECL_SVC(CreateThread) {
     u32 newtid = thread_create(s, entrypoint, stacktop, priority, arg);
     if (newtid == -1) {
         R(0) = -1;
-        lerror("ran out of threads");
         return;
     }
 
-    R(0) = 0;
-    R(1) = MAKE_HANDLE(HANDLE_THREAD, newtid);
+    HANDLE_SET(handle, s->process.threads[newtid]);
+    s->process.threads[newtid]->hdr.refcount = 1;
+    linfo("created thread with handle %x", handle);
 
-    if (priority > CUR_THREAD.priority) thread_reschedule(s);
+    R(0) = 0;
+    R(1) = handle;
+
+    if (priority < CUR_THREAD->priority) thread_reschedule(s);
 }
 
 DECL_SVC(CreateEvent) {
-    u32 id = syncobj_create(s, SYNCOBJ_EVENT);
-    if (id == -1) {
-        R(0) = -1;
-        lerror("could not create event");
-        return;
-    }
+    MAKE_HANDLE(handle);
+
+    KEvent* event = event_create();
+    event->hdr.refcount = 1;
+    HANDLE_SET(handle, event);
+
+    linfo("created event with handle %x", handle);
 
     R(0) = 0;
-    R(1) = MAKE_HANDLE(HANDLE_SYNCOBJ, id);
+    R(1) = handle;
 }
 
 DECL_SVC(ClearEvent) {
@@ -99,28 +112,50 @@ DECL_SVC(MapMemoryBlock) {
     u32 addr = R(1);
     u32 perm = R(2);
 
-    if (HANDLE_TYPE(memblock) != HANDLE_MEMBLOCK ||
-        HANDLE_VAL(memblock) >= s->kernel.shmemblocks.size) {
+    KSharedMem* shmem = HANDLE_GET_TYPED(memblock, KOT_SHAREDMEM);
+
+    if (!shmem) {
         R(0) = -1;
-        lerror("invalid memory block");
+        lerror("invalid memory block handle");
         return;
     }
 
-    s->kernel.shmemblocks.d[HANDLE_VAL(memblock)].vaddr = addr;
+    linfo("mapping shared mem block %x at %08x", memblock, addr);
+
+    shmem->vaddr = addr;
 
     hle3ds_vmmap(s, addr, PAGE_SIZE, perm, MEMST_SHARED, false);
+
+    R(0) = 0;
 }
 
 DECL_SVC(CreateAddressArbiter) {
+    MAKE_HANDLE(h);
+
+    KArbiter* arbiter = calloc(1, sizeof *arbiter);
+    arbiter->hdr.type = KOT_ARBITER;
+    arbiter->hdr.refcount = 1;
+    linfo("handle=%x", h);
+
+    HANDLE_SET(h, arbiter);
+
     R(0) = 0;
-    R(1) = 1;
+    R(1) = h;
 }
 
 DECL_SVC(ArbitrateAddress) {
+    u32 h = R(0);
     u32 addr = R(1);
     u32 type = R(2);
     s32 value = R(3);
     s64 time = RR(4);
+
+    KArbiter* arbiter = HANDLE_GET_TYPED(h, KOT_ARBITER);
+    if (!arbiter) {
+        lerror("bad typed handle");
+        R(0) = -1;
+        return;
+    }
 
     R(0) = 0;
 
@@ -128,31 +163,37 @@ DECL_SVC(ArbitrateAddress) {
         case ARBITRATE_SIGNAL:
             linfo("signaling address %08x", addr);
             if (value < 0) {
-                Vec_foreach(t, s->kernel.addr_arbiter_thrds) {
-                    if (t->addr != addr) continue;
-                    linfo("waking up thread %d", t->tid);
-                    s->kernel.threads.d[t->tid].state = THRD_READY;
-                    Vec_remove(s->kernel.addr_arbiter_thrds,
-                               t - s->kernel.addr_arbiter_thrds.d);
-                    t--;
+                KListNode** cur = &arbiter->waiting_thrds;
+                while (*cur) {
+                    KThread* t = (KThread*) (*cur)->val;
+                    if (t->waiting_addr == addr) {
+                        linfo("waking up thread %d", t->id);
+                        t->state = THRD_READY;
+                        klist_remove(cur);
+                    } else {
+                        cur = &(*cur)->next;
+                    }
                 }
             } else {
                 for (int i = 0; i < value; i++) {
-                    u32 maxprio = 0;
-                    u32 maxi = -1;
-                    u32 tid;
-                    Vec_foreach(t, s->kernel.addr_arbiter_thrds) {
-                        if (t->addr != addr) continue;
-                        if (s->kernel.threads.d[t->tid].priority >= maxprio) {
-                            maxprio = s->kernel.threads.d[t->tid].priority;
-                            maxi = t - s->kernel.addr_arbiter_thrds.d;
-                            tid = t->tid;
+                    u32 maxprio = THRD_MAX_PRIO;
+                    KListNode** toRemove = NULL;
+                    KListNode** cur = &arbiter->waiting_thrds;
+                    while (*cur) {
+                        KThread* t = (KThread*) (*cur)->val;
+                        if (t->waiting_addr == addr) {
+                            if (t->priority < maxprio) {
+                                maxprio = t->priority;
+                                toRemove = cur;
+                            }
                         }
+                        cur = &(*cur)->next;
                     }
-                    if (maxi == -1) break;
-                    linfo("waking up thread %d", tid);
-                    s->kernel.threads.d[tid].state = THRD_READY;
-                    Vec_remove(s->kernel.addr_arbiter_thrds, maxi);
+                    if (!toRemove) break;
+                    KThread* t = (KThread*) (*toRemove)->val;
+                    linfo("waking up thread %d", t->id);
+                    t->state = THRD_READY;
+                    klist_remove(toRemove);
                 }
             }
             thread_reschedule(s);
@@ -162,9 +203,9 @@ DECL_SVC(ArbitrateAddress) {
             __attribute__((fallthrough));
         case ARBITRATE_WAIT:
             if (*(s32*) PTR(addr) < value) {
-                Vec_push(s->kernel.addr_arbiter_thrds,
-                         ((AddressThread){addr, s->kernel.cur_tid}));
-                CUR_THREAD.state = THRD_SLEEP;
+                klist_insert(&arbiter->waiting_thrds, &CUR_THREAD->hdr);
+                CUR_THREAD->state = THRD_SLEEP;
+                CUR_THREAD->waiting_addr = addr;
                 linfo("waiting on address %08x", addr);
                 thread_reschedule(s);
             }
@@ -176,17 +217,54 @@ DECL_SVC(ArbitrateAddress) {
 }
 
 DECL_SVC(CloseHandle) {
+    KObject* obj = HANDLE_GET(R(0));
+    if (!obj) {
+        lerror("invalid handle");
+        R(0) = -1;
+        return;
+    }
+
+    if (!--obj->refcount) {
+        linfo("destroying object of handle %x", R(0));
+        kobject_destroy(obj);
+        HANDLE_SET(R(0), NULL);
+    }
+
     R(0) = 0;
 }
 
 DECL_SVC(WaitSynchronization1) {
     u32 handle = R(0);
-    if (HANDLE_TYPE(handle) != HANDLE_SYNCOBJ ||
-        HANDLE_VAL(handle) >= s->kernel.syncobjs.size) {
+    KObject* obj = HANDLE_GET(handle);
+    if (!obj) {
+        lerror("invalid handle");
         R(0) = -1;
-        lerror("invalid handle %x", handle);
+        return;
     }
-    syncobj_wait(s, HANDLE_VAL(handle));
+    R(0) = 0;
+
+    switch (obj->type) {
+        case KOT_EVENT:
+            linfo("waiting on event handle %x", handle);
+            event_wait(s, (KEvent*) obj);
+            break;
+        default:
+            R(0) = -1;
+            lerror("cannot wait on this %d", obj->type);
+    }
+}
+
+DECL_SVC(DuplicateHandle) {
+    KObject* o = HANDLE_GET(R(1));
+    if (!o) {
+        lerror("invalid handle");
+        R(0) = -1;
+        return;
+    }
+    MAKE_HANDLE(dup);
+    o->refcount++;
+    HANDLE_SET(dup, o);
+
     R(0) = 0;
 }
 
@@ -195,11 +273,15 @@ DECL_SVC(GetSystemTick) {
 }
 
 DECL_SVC(ConnectToPort) {
+    MAKE_HANDLE(h);
     char* port = PTR(R(1));
+    R(0) = 0;
     if (!strcmp(port, "srv:")) {
-        linfo("connected to port '%s'", port);
-        R(0) = 0;
-        R(1) = MAKE_HANDLE(HANDLE_SESSION, SRV_SRV);
+        linfo("connected to port '%s' with handle %x", port, h);
+        KSession* session = session_create(port_handle_srv);
+        session->hdr.refcount = 1;
+        HANDLE_SET(h, session);
+        R(1) = h;
     } else {
         R(0) = -1;
         lerror("unknown port '%s'", port);
@@ -207,20 +289,26 @@ DECL_SVC(ConnectToPort) {
 }
 
 DECL_SVC(SendSyncRequest) {
-    if (HANDLE_TYPE(R(0)) != HANDLE_SESSION || HANDLE_VAL(R(0)) >= SRV_MAX) {
+    KSession* session = HANDLE_GET_TYPED(R(0), KOT_SESSION);
+    if (!session) {
         lerror("invalid session handle");
         R(0) = -1;
         return;
     }
     u32 cmd_addr = CUR_TLS + IPC_CMD_OFF;
     IPCHeader cmd = {*(u32*) PTR(cmd_addr)};
-    services_handle_request(s, HANDLE_VAL(R(0)), cmd, CUR_TLS + IPC_CMD_OFF);
+    session->handler(s, cmd, CUR_TLS + IPC_CMD_OFF);
     R(0) = 0;
 }
 
 DECL_SVC(GetResourceLimit) {
+    MAKE_HANDLE(h);
     R(0) = 0;
-    R(1) = 1;
+    KObject* dummy = malloc(sizeof *dummy);
+    dummy->type = KOT_RESLIMIT;
+    dummy->refcount = 1;
+    HANDLE_SET(h, dummy);
+    R(1) = h;
 }
 
 DECL_SVC(GetResourceLimitLimitValues) {
@@ -249,7 +337,7 @@ DECL_SVC(GetResourceLimitCurrentValues) {
     for (int i = 0; i < count; i++) {
         switch (names[i]) {
             case RES_MEMORY:
-                values[i] = s->kernel.used_memory;
+                values[i] = s->process.used_memory;
                 linfo("memory: %08x", values[i]);
                 break;
             default:
@@ -269,43 +357,13 @@ DECL_SVC(OutputDebugString) {
 }
 
 SVCFunc svc_table[SVC_MAX] = {
-    [0x01] = svc_ControlMemory,
-    [0x02] = svc_QueryMemory,
-    [0x08] = svc_CreateThread,
-    [0x17] = svc_CreateEvent,
-    [0x19] = svc_ClearEvent,
-    [0x1f] = svc_MapMemoryBlock,
-    [0x21] = svc_CreateAddressArbiter,
-    [0x22] = svc_ArbitrateAddress,
-    [0x23] = svc_CloseHandle,
-    [0x24] = svc_WaitSynchronization1,
-    [0x28] = svc_GetSystemTick,
-    [0x2d] = svc_ConnectToPort,
-    [0x32] = svc_SendSyncRequest,
-    [0x38] = svc_GetResourceLimit,
-    [0x39] = svc_GetResourceLimitLimitValues,
-    [0x3a] = svc_GetResourceLimitCurrentValues,
-    [0x3c] = svc_Break,
-    [0x3d] = svc_OutputDebugString,
+#define SVC(num, name) [num] = svc_##name,
+#include "svcs.inc"
+#undef SVC
 };
 
 char* svc_names[SVC_MAX] = {
-    [0x01] = "ControlMemory",
-    [0x02] = "QueryMemory",
-    [0x08] = "CreateThread",
-    [0x17] = "CreateEvent",
-    [0x19] = "ClearEvent",
-    [0x1f] = "MapMemoryBlock",
-    [0x21] = "CreateAddressArbiter",
-    [0x22] = "ArbitrateAddress",
-    [0x23] = "CloseHandle",
-    [0x24] = "WaitSynchronization1",
-    [0x28] = "GetSystemTick",
-    [0x2d] = "ConnectToPort",
-    [0x32] = "SendSyncRequest",
-    [0x38] = "GetResourceLimit",
-    [0x39] = "GetResourceLimitLimitValues",
-    [0x3a] = "GetResourceLimitCurrentValues",
-    [0x3c] = "Break",
-    [0x3d] = "OutputDebugString",
+#define SVC(num, name) [num] = #name,
+#include "svcs.inc"
+#undef SVC
 };

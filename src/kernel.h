@@ -1,23 +1,52 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
-#include "memory.h"
-#include "thread.h"
 #include "types.h"
 
-#define MAX_RES 32
+#define HANDLE_MAX BIT(10)
+#define HANDLE_BASE 0xffff8000
 
-typedef struct _KernelData {
-    VMBlock vmblocks;
+typedef struct _3DS HLE3DS;
 
-    StaticVector(SHMemBlock, MAX_RES) shmemblocks;
+typedef enum {
+    KOT_PROCESS,
+    KOT_THREAD,
+    KOT_MUTEX,
+    KOT_SEMAPHORE,
+    KOT_EVENT,
+    KOT_TIMER,
+    KOT_SHAREDMEM,
+    KOT_ARBITER,
+    KOT_SESSION,
+    KOT_RESLIMIT,
 
-    StaticVector(Thread, MAX_RES) threads;
-    u32 cur_tid;
-    StaticVector(SyncObj, (MAX_RES * SYNCOBJ_MAX)) syncobjs;
-    Vector(AddressThread) addr_arbiter_thrds;
+    KOT_MAX
+} KObjType;
 
-    u32 used_memory;
-} KernelData;
+typedef struct {
+    KObjType type;
+    int refcount;
+} KObject;
+
+typedef struct _KListNode {
+    KObject* val;
+    struct _KListNode* next;
+} KListNode;
+
+u32 handle_new(HLE3DS* s);
+#define HANDLE_SET(h, o) (s->process.handles[h - HANDLE_BASE] = (KObject*) (o))
+#define HANDLE_GET(h)                                                          \
+    (((h - HANDLE_BASE) < HANDLE_MAX) ? s->process.handles[h - HANDLE_BASE]    \
+                                      : NULL)
+#define HANDLE_GET_TYPED(h, t)                                                 \
+    (((h - HANDLE_BASE) < HANDLE_MAX && s->process.handles[h - HANDLE_BASE] && \
+      s->process.handles[h - HANDLE_BASE]->type == t)                          \
+         ? (void*) s->process.handles[h - HANDLE_BASE]                         \
+         : NULL)
+
+void klist_insert(KListNode** l, KObject* o);
+void klist_remove(KListNode** l);
+
+void kobject_destroy(KObject* o);
 
 #endif

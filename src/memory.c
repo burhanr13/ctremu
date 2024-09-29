@@ -16,7 +16,7 @@
 #ifdef __APPLE__
 #define memfd_create(name, x)                                                  \
     ({                                                                         \
-        int fd = open(name, O_RDWR | O_CREAT);                       \
+        int fd = open(name, O_RDWR | O_CREAT);                                 \
         unlink(name);                                                          \
         fd;                                                                    \
     })
@@ -24,7 +24,8 @@
 
 void sigsegv_handler(int sig, siginfo_t* info, void* ucontext) {
     u8* addr = info->si_addr;
-    if (ctremu.system.virtmem <= addr && addr < ctremu.system.virtmem + BITL(32)) {
+    if (ctremu.system.virtmem <= addr &&
+        addr < ctremu.system.virtmem + BITL(32)) {
         lerror(
             "(FATAL) invalid 3DS virtual memory access at %08x (pc near %08x)",
             addr - ctremu.system.virtmem, ctremu.system.cpu.pc);
@@ -72,18 +73,18 @@ void hle3ds_memory_init(HLE3DS* s) {
     VMBlock* initblk = malloc(sizeof(VMBlock));
     *initblk = (VMBlock){
         .startpg = 0, .endpg = BIT(20), .perm = 0, .state = MEMST_FREE};
-    s->kernel.vmblocks.startpg = BIT(20);
-    s->kernel.vmblocks.endpg = BIT(20);
-    s->kernel.vmblocks.next = initblk;
-    s->kernel.vmblocks.prev = initblk;
-    initblk->prev = &s->kernel.vmblocks;
-    initblk->next = &s->kernel.vmblocks;
+    s->process.vmblocks.startpg = BIT(20);
+    s->process.vmblocks.endpg = BIT(20);
+    s->process.vmblocks.next = initblk;
+    s->process.vmblocks.prev = initblk;
+    initblk->prev = &s->process.vmblocks;
+    initblk->next = &s->process.vmblocks;
 }
 
 void hle3ds_memory_destroy(HLE3DS* s) {
-    while (s->kernel.vmblocks.next != &s->kernel.vmblocks) {
-        VMBlock* tmp = s->kernel.vmblocks.next;
-        s->kernel.vmblocks.next = s->kernel.vmblocks.next->next;
+    while (s->process.vmblocks.next != &s->process.vmblocks) {
+        VMBlock* tmp = s->process.vmblocks.next;
+        s->process.vmblocks.next = s->process.vmblocks.next->next;
         free(tmp);
     }
 
@@ -96,8 +97,8 @@ void hle3ds_memory_destroy(HLE3DS* s) {
 }
 
 void insert_vmblock(HLE3DS* s, VMBlock* n) {
-    VMBlock* l = s->kernel.vmblocks.next;
-    while (l != &s->kernel.vmblocks) {
+    VMBlock* l = s->process.vmblocks.next;
+    while (l != &s->process.vmblocks) {
         if (l->startpg <= n->startpg && n->startpg < l->endpg) break;
         l = l->next;
     }
@@ -188,7 +189,7 @@ void hle3ds_vmmap(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state,
         perror("mmap");
         exit(1);
     }
-    s->kernel.used_memory += size;
+    s->process.used_memory += size;
     linfo("mapped 3DS virtual memory at %08x with size 0x%x, perm %d, "
           "state %d",
           base, size, perm, state);
@@ -196,8 +197,8 @@ void hle3ds_vmmap(HLE3DS* s, u32 base, u32 size, u32 perm, u32 state,
 
 VMBlock* hle3ds_vmquery(HLE3DS* s, u32 addr) {
     addr >>= 12;
-    VMBlock* b = s->kernel.vmblocks.next;
-    while (b != &s->kernel.vmblocks) {
+    VMBlock* b = s->process.vmblocks.next;
+    while (b != &s->process.vmblocks) {
         if (b->startpg <= addr && addr < b->endpg) return b;
         b = b->next;
     }

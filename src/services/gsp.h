@@ -1,6 +1,8 @@
 #ifndef GSP_H
 #define GSP_H
 
+#include "../memory.h"
+#include "../thread.h"
 #include "../srv.h"
 #include "../svc_types.h"
 
@@ -15,11 +17,11 @@ enum {
 };
 
 typedef struct {
-    Handle event;
-    Handle memblock;
+    KEvent* event;
+    KSharedMem sharedmem;
 } GSPData;
 
-DECL_SRV(gsp_gpu);
+DECL_PORT(gsp_gpu);
 
 void gsp_handle_event(HLE3DS* s, u32 arg);
 void gsp_handle_command(HLE3DS* s);

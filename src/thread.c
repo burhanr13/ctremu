@@ -4,51 +4,70 @@
 
 void load_context(HLE3DS* s) {
     for (int i = 0; i < 16; i++) {
-        s->cpu.r[i] = CUR_THREAD.context.r[i];
-        s->cpu.d[i] = CUR_THREAD.context.d[i];
+        s->cpu.r[i] = CUR_THREAD->context.r[i];
+        s->cpu.d[i] = CUR_THREAD->context.d[i];
     }
-    s->cpu.cpsr.w = CUR_THREAD.context.cpsr;
-    s->cpu.fpscr.w = CUR_THREAD.context.fpscr;
+    s->cpu.cpsr.w = CUR_THREAD->context.cpsr;
+    s->cpu.fpscr.w = CUR_THREAD->context.fpscr;
 }
 
 void save_context(HLE3DS* s) {
     for (int i = 0; i < 16; i++) {
-        CUR_THREAD.context.r[i] = s->cpu.r[i];
-        CUR_THREAD.context.d[i] = s->cpu.d[i];
+        CUR_THREAD->context.r[i] = s->cpu.r[i];
+        CUR_THREAD->context.d[i] = s->cpu.d[i];
     }
-    CUR_THREAD.context.cpsr = s->cpu.cpsr.w;
-    CUR_THREAD.context.fpscr = s->cpu.fpscr.w;
+    CUR_THREAD->context.cpsr = s->cpu.cpsr.w;
+    CUR_THREAD->context.fpscr = s->cpu.fpscr.w;
 }
 
 void thread_init(HLE3DS* s, u32 entrypoint) {
-    s->kernel.cur_tid = thread_create(s, entrypoint, STACK_BASE, 0x30, 0);
+    u32 tid = thread_create(s, entrypoint, STACK_BASE, 0x30, 0);
+
+    s->process.handles[0] = &s->process.threads[tid]->hdr;
 
     load_context(s);
-    CUR_THREAD.state = THRD_RUNNING;
+    CUR_THREAD->state = THRD_RUNNING;
 }
 
 u32 thread_create(HLE3DS* s, u32 entrypoint, u32 stacktop, u32 priority,
                   u32 arg) {
-    if (SVec_full(s->kernel.threads)) return -1;
-    u32 id = SVec_push(s->kernel.threads, ((Thread) {.context.arg = arg,
-                                                     .context.sp = stacktop,
-                                                     .context.pc = entrypoint,
-                                                     .context.cpsr = M_USER,
-                                                     .priority = priority,
-                                                     .state = THRD_READY}));
+    u32 tid = -1;
+    for (int i = 0; i < THREAD_MAX; i++) {
+        if (!s->process.threads[i]) {
+            tid = i;
+            break;
+        }
+    }
+    if (tid == -1) {
+        lerror("not enough threads");
+        return tid;
+    }
+    KThread* thrd = calloc(1, sizeof *thrd);
+    thrd->hdr.type = KOT_THREAD;
+    thrd->context.arg = arg;
+    thrd->context.sp = stacktop;
+    thrd->context.pc = entrypoint;
+    thrd->context.cpsr = M_USER;
+    thrd->priority = priority;
+    thrd->state = THRD_READY;
+    thrd->id = tid;
+    s->process.threads[tid] = thrd;
+
     linfo("creating thread %d (entry %08x, stack %08x, priority %x, arg %x)",
-          id, entrypoint, stacktop, priority, arg);
-    return id;
+          tid, entrypoint, stacktop, priority, arg);
+    return tid;
 }
 
 bool thread_reschedule(HLE3DS* s) {
-    if (CUR_THREAD.state == THRD_RUNNING) CUR_THREAD.state = THRD_READY;
+    if (CUR_THREAD->state == THRD_RUNNING) CUR_THREAD->state = THRD_READY;
     u32 nexttid = -1;
-    u32 maxprio = 0;
-    Vec_foreach(t, s->kernel.threads) {
-        if (t->state == THRD_READY && t->priority >= maxprio) {
+    u32 maxprio = THRD_MAX_PRIO;
+    for (u32 i = 0; i < THREAD_MAX; i++) {
+        KThread* t = s->process.threads[i];
+        if (!t) continue;
+        if (t->state == THRD_READY && t->priority < maxprio) {
             maxprio = t->priority;
-            nexttid = t - s->kernel.threads.d;
+            nexttid = i;
         }
     }
     if (nexttid == -1) {
@@ -56,38 +75,34 @@ bool thread_reschedule(HLE3DS* s) {
         linfo("all threads sleeping");
         return false;
     }
-    linfo("switching thread from %d to %d", s->kernel.cur_tid, nexttid);
+    linfo("switching thread from %d to %d", CUR_THREAD->id, nexttid);
     save_context(s);
-    s->kernel.cur_tid = nexttid;
+    s->process.handles[0] = &s->process.threads[nexttid]->hdr;
     load_context(s);
     return true;
 }
 
-u32 syncobj_create(HLE3DS* s, u32 type) {
-    if (SVec_full(s->kernel.syncobjs)) return -1;
-
-    u32 id = SVec_push(s->kernel.syncobjs, ((SyncObj) {.type = type}));
-
-    static char* names[SYNCOBJ_MAX] = {[SYNCOBJ_EVENT] = "event",
-                                       [SYNCOBJ_MUTEX] = "mutex",
-                                       [SYNCOBJ_SEM] = "semaphore"};
-    linfo("creating synchronization object %d of type %s", id, names[type]);
-    return id;
+void thread_wakeup(KThread* t, KObject* reason) {
+    t->state = THRD_READY;
 }
 
-bool syncobj_wait(HLE3DS* s, u32 id) {
-    Vec_push(s->kernel.syncobjs.d[id].waiting_thrds, s->kernel.cur_tid);
-    CUR_THREAD.state = THRD_SLEEP;
-    linfo("waiting on synchronization object %d", id);
-    thread_reschedule(s);
-    return true;
+KEvent* event_create() {
+    KEvent* ev = calloc(1, sizeof *ev);
+    ev->hdr.type = KOT_EVENT;
+    return ev;
 }
 
-void syncobj_signal(HLE3DS* s, u32 id) {
-    linfo("signaling synchronization object %d", id);
-    Vec_foreach(t, s->kernel.syncobjs.d[id].waiting_thrds) {
-        s->kernel.threads.d[*t].state = THRD_READY;
+void event_signal(HLE3DS* s, KEvent* ev) {
+    KListNode** cur = &ev->waiting_thrds;
+    while (*cur) {
+        thread_wakeup((KThread*) (*cur)->val, &ev->hdr);
+        klist_remove(cur);
     }
-    Vec_free(s->kernel.syncobjs.d[id].waiting_thrds);
+    thread_reschedule(s);
+}
+
+void event_wait(HLE3DS* s, KEvent* ev) {
+    klist_insert(&ev->waiting_thrds, &CUR_THREAD->hdr);
+    CUR_THREAD->state = THRD_SLEEP;
     thread_reschedule(s);
 }

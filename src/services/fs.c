@@ -2,7 +2,7 @@
 
 #include "../3ds.h"
 
-DECL_SRV(fs) {
+DECL_PORT(fs) {
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
         default:

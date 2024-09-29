@@ -1,8 +1,10 @@
 #ifndef HID_H
 #define HID_H
 
-#include "../svc_types.h"
+#include "../memory.h"
 #include "../srv.h"
+#include "../svc_types.h"
+#include "../thread.h"
 
 enum {
     HIDEVENT_PAD0,
@@ -14,10 +16,10 @@ enum {
 };
 
 typedef struct {
-    Handle memblock;
-    Handle events[HIDEVENT_MAX];
+    KSharedMem sharedmem;
+    KEvent events[HIDEVENT_MAX];
 } HIDData;
 
-DECL_SRV(hid);
+DECL_PORT(hid);
 
 #endif

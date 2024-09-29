@@ -2,7 +2,7 @@
 
 #include "../3ds.h"
 
-DECL_SRV(apt) {
+DECL_PORT(apt) {
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
         default:

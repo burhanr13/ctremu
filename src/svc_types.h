@@ -3,8 +3,6 @@
 
 #include "types.h"
 
-typedef u32 Handle;
-
 enum {
     MEMOP_ALLOC = 3,
     MEMOP_MASK = 0xff,

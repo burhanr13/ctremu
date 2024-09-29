@@ -9,21 +9,27 @@
 #include "services/gsp.h"
 #include "services/hid.h"
 
-extern SRVFunc srv_funcs[SRV_MAX];
-
 void init_services(HLE3DS* s) {
-    s->services.gsp.event = -1;
-    s->services.gsp.memblock = MAKE_HANDLE(
-        HANDLE_MEMBLOCK, SVec_push(s->kernel.shmemblocks, (SHMemBlock){0}));
-    s->services.hid.memblock = MAKE_HANDLE(
-        HANDLE_MEMBLOCK, SVec_push(s->kernel.shmemblocks, (SHMemBlock){0}));
+    s->services.gsp.event = NULL;
+    s->services.gsp.sharedmem.hdr.type = KOT_SHAREDMEM;
+    s->services.gsp.sharedmem.hdr.refcount = 1;
+
+    s->services.hid.sharedmem.hdr.type = KOT_SHAREDMEM;
+    s->services.hid.sharedmem.hdr.refcount = 1;
+    for (int i = 0; i < HIDEVENT_MAX; i++) {
+        s->services.hid.events[i].hdr.type = KOT_EVENT;
+        s->services.hid.events[i].hdr.refcount = 1;
+    }
 }
 
-void services_handle_request(HLE3DS* s, u32 srv, IPCHeader cmd, u32 cmd_addr) {
-    srv_funcs[srv](s, cmd, cmd_addr);
+KSession* session_create(PortRequestHandler f) {
+    KSession* session = calloc(1, sizeof *session);
+    session->hdr.type = KOT_SESSION;
+    session->handler = f;
+    return session;
 }
 
-DECL_SRV(srv) {
+DECL_PORT(srv) {
 #define IS(_name) (!strcmp(name, _name))
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
@@ -34,22 +40,26 @@ DECL_SRV(srv) {
             cmd_params[0] = MAKE_IPCHEADER(3, 0);
             cmd_params[1] = 0;
 
-            u32 srvid;
+            PortRequestHandler handler;
             if (IS("APT:U") || IS("APT:A") || IS("APT:S")) {
-                srvid = SRV_APT;
+                handler = port_handle_apt;
             } else if (IS("fs:USER")) {
-                srvid = SRV_FS;
+                handler = port_handle_fs;
             } else if (IS("gsp::Gpu")) {
-                srvid = SRV_GSP_GPU;
+                handler = port_handle_gsp_gpu;
             } else if (IS("hid:USER") || IS("hid:SPVR")) {
-                srvid = SRV_HID;
+                handler = port_handle_hid;
             } else {
                 lerror("unknown service '%s'", name);
                 cmd_params[1] = -1;
             }
             if (cmd_params[1] == 0) {
-                cmd_params[3] = MAKE_HANDLE(HANDLE_SESSION, srvid);
-                linfo("connected to service '%s'", name);
+                u32 handle = handle_new(s);
+                KSession* session = session_create(handler);
+                HANDLE_SET(handle, session);
+                session->hdr.refcount = 1;
+                cmd_params[3] = handle;
+                linfo("connected to service '%s' with handle %x", name, handle);
             }
             break;
         }
@@ -59,9 +69,3 @@ DECL_SRV(srv) {
     }
 #undef IS
 }
-
-SRVFunc srv_funcs[SRV_MAX] = {
-    [SRV_SRV] = srv_handle_srv, [SRV_APT] = srv_handle_apt,
-    [SRV_FS] = srv_handle_fs,   [SRV_GSP_GPU] = srv_handle_gsp_gpu,
-    [SRV_HID] = srv_handle_hid,
-};

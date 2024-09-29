@@ -40,14 +40,18 @@ void hle3ds_init(HLE3DS* s, char* romfile) {
 
     hle3ds_vmmap(s, SHARED_PAGE, PAGE_SIZE, PERM_R, MEMST_STATIC, false);
 
-    hle3ds_vmmap(s, TLS_BASE, TLS_SIZE * MAX_RES, PERM_RW, MEMST_PRIVATE,
+    hle3ds_vmmap(s, TLS_BASE, TLS_SIZE * THREAD_MAX, PERM_RW, MEMST_PRIVATE,
                  false);
 
     init_services(s);
 
     thread_init(s, entrypoint);
 
-    add_event(&s->sched, EVENT_GSP, GSPEVENT_VBLANK0, CPU_CLK / FPS);
+    s->process.hdr.type = KOT_PROCESS;
+    s->process.hdr.refcount = 1;
+    s->process.handles[1] = &s->process.hdr;
+
+    add_event(&s->sched, gsp_handle_event, GSPEVENT_VBLANK0, CPU_CLK / FPS);
 }
 
 void hle3ds_destroy(HLE3DS* s) {

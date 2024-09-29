@@ -3,15 +3,15 @@
 
 #include "types.h"
 
-typedef enum {
-    EVENT_GSP,
+#define EVENT_MAX BIT(8)
 
-    EVENT_MAX = 128,
-} EventType;
+typedef struct _3DS HLE3DS;
+
+typedef void (*SchedEventHandler)(HLE3DS*, u32);
 
 typedef struct {
     u64 time;
-    EventType type;
+    SchedEventHandler handler;
     u32 arg;
 } SchedulerEvent;
 
@@ -28,14 +28,13 @@ typedef struct {
 void run_to_present(Scheduler* sched);
 int run_next_event(Scheduler* sched);
 
-static inline bool event_pending(Scheduler* sched) {
-    return sched->event_queue.size &&
-           sched->now >= FIFO_peek(sched->event_queue).time;
-}
+#define EVENT_PENDING(sched)                                                   \
+    sched->event_queue.size && sched->now >= FIFO_peek(sched->event_queue).time
 
-void add_event(Scheduler* sched, EventType t, u32 event_arg, s64 reltime);
-void remove_event(Scheduler* sched, EventType t);
-u64 find_event(Scheduler* sched, EventType t);
+void add_event(Scheduler* sched, SchedEventHandler f, u32 event_arg,
+               s64 reltime);
+void remove_event(Scheduler* sched, SchedEventHandler f);
+u64 find_event(Scheduler* sched, SchedEventHandler f);
 
 void print_scheduled_events(Scheduler* sched);
 

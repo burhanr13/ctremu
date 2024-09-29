@@ -1,7 +1,11 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+#include "kernel.h"
+#include "memory.h"
 #include "types.h"
+
+#define THREAD_MAX 32
 
 typedef struct _3DS HLE3DS;
 
@@ -11,7 +15,9 @@ enum {
     THRD_SLEEP,
 };
 
-typedef struct {
+typedef struct _KThread {
+    KObject hdr;
+
     struct {
         union {
             u32 r[16];
@@ -24,46 +30,54 @@ typedef struct {
             };
         };
         u32 cpsr;
-        
+
         double d[16];
         u32 fpscr;
     } context;
 
+    u32 waiting_addr;
+
+    u32 id;
     s32 priority;
     u32 state;
-} Thread;
+} KThread;
 
-enum {
-    SYNCOBJ_EVENT,
-    SYNCOBJ_MUTEX,
-    SYNCOBJ_SEM,
+typedef struct _KProcess {
+    KObject hdr;
 
-    SYNCOBJ_MAX
-};
+    VMBlock vmblocks;
 
-typedef struct {
-    u32 type;
-    u32 value;
-    Vector(u32) waiting_thrds;
-} SyncObj;
+    KObject* handles[HANDLE_MAX];
+
+    KThread* threads[THREAD_MAX];
+
+    u32 used_memory;
+} KProcess;
 
 typedef struct {
-    u32 addr;
-    u32 tid;
-} AddressThread;
+    KObject hdr;
+
+    KListNode* waiting_thrds;
+} KEvent;
+
+typedef struct {
+    KObject hdr;
+
+    KListNode* waiting_thrds;
+} KArbiter;
 
 #define THRD_MAX_PRIO 0x40
 
-#define CUR_THREAD (s->kernel.threads.d[s->kernel.cur_tid])
-#define CUR_TLS (TLS_BASE + TLS_SIZE * s->kernel.cur_tid)
+#define CUR_THREAD ((KThread*) s->process.handles[0])
+#define CUR_TLS (TLS_BASE + TLS_SIZE * (CUR_THREAD->id))
 
 void thread_init(HLE3DS* s, u32 entrypoint);
 u32 thread_create(HLE3DS* s, u32 entrypoint, u32 stacktop, u32 priority,
                   u32 arg);
 bool thread_reschedule(HLE3DS* s);
 
-u32 syncobj_create(HLE3DS* s, u32 type);
-bool syncobj_wait(HLE3DS* s, u32 id);
-void syncobj_signal(HLE3DS* s, u32 id);
+KEvent* event_create();
+void event_signal(HLE3DS* s, KEvent* ev);
+void event_wait(HLE3DS* s, KEvent* ev);
 
 #endif

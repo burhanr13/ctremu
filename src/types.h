@@ -11,7 +11,7 @@
 
 #define eprintf(format, ...) fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__)
 
-//#define NOINFO
+// #define NOINFO
 
 #ifndef NOINFO
 #define linfo(format, ...)                                                     \
@@ -21,11 +21,11 @@
 #define linfo(format, ...)
 #endif
 #define lwarn(format, ...)                                                     \
-    printf("\e[43;30m[WARNING](%s) " format "\e[0m\n",                           \
-            __func__ __VA_OPT__(, ) __VA_ARGS__)
+    printf("\e[43;30m[WARNING](%s) " format "\e[0m\n",                         \
+           __func__ __VA_OPT__(, ) __VA_ARGS__)
 #define lerror(format, ...)                                                    \
-    printf("\e[41m[ERROR](%s) " format "\e[0m\n",                             \
-            __func__ __VA_OPT__(, ) __VA_ARGS__)
+    printf("\e[41m[ERROR](%s) " format "\e[0m\n",                              \
+           __func__ __VA_OPT__(, ) __VA_ARGS__)
 
 typedef uint8_t u8;
 typedef int8_t s8;
@@ -101,7 +101,9 @@ typedef int64_t s64;
             (v).d[j] = (v).d[j + 1];                                           \
         }                                                                      \
     })
+#define SVec_remove Vec_remove
 #define Vec_foreach(e, v)                                                      \
     for (typeof((v).d[0])* e = (v).d; e < (v).d + (v).size; e++)
+#define SVec_foreach Vec_remove
 
 #endif
