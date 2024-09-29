@@ -29,7 +29,8 @@ typedef struct {
 } KObject;
 
 typedef struct _KListNode {
-    KObject* val;
+    KObject* key;
+    u32 val;
     struct _KListNode* next;
 } KListNode;
 
@@ -46,6 +47,7 @@ u32 handle_new(HLE3DS* s);
 
 void klist_insert(KListNode** l, KObject* o);
 void klist_remove(KListNode** l);
+u32 klist_remove_key(KListNode** l, KObject* o);
 
 void kobject_destroy(KObject* o);
 

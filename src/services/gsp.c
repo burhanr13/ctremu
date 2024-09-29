@@ -24,13 +24,11 @@ DECL_PORT(gsp_gpu) {
         case 0x0013: {
             cmd_params[0] = MAKE_IPCHEADER(2, 2);
 
-            u32 shmemhandle = handle_new(s);
+            u32 shmemhandle = srvobj_make_handle(s,&s->services.gsp.sharedmem.hdr);
             if (!shmemhandle) {
                 cmd_params[1] = -1;
                 return;
             }
-            HANDLE_SET(shmemhandle, &s->services.gsp.sharedmem.hdr);
-            s->services.gsp.sharedmem.hdr.refcount++;
 
             KEvent* event = HANDLE_GET_TYPED(cmd_params[3], KOT_EVENT);
             if (!event) {
@@ -70,6 +68,8 @@ void gsp_handle_event(HLE3DS* s, u32 arg) {
         add_event(&s->sched, gsp_handle_event, GSPEVENT_VBLANK1, CPU_CLK / 60);
         s->frame_complete = true;
     }
+
+    if (!s->services.gsp.sharedmem.mapped) return;
 
     struct {
         u8 cur;
@@ -155,6 +155,9 @@ void gsp_handle_command(HLE3DS* s) {
             gsp_handle_event(s, GSPEVENT_PPF);
             break;
         }
+        case 0x05:
+            linfo("flush cache regions");
+            break;
         default:
             lwarn("unknown gsp queue command 0x%02x", cmds->d[cmds->cur].id);
     }

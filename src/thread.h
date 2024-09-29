@@ -36,6 +36,8 @@ typedef struct _KThread {
     } context;
 
     u32 waiting_addr;
+    KListNode* waiting_objs;
+    bool wait_all;
 
     u32 id;
     s32 priority;
@@ -57,8 +59,19 @@ typedef struct _KProcess {
 typedef struct {
     KObject hdr;
 
+    bool signal;
+    bool sticky;
+
     KListNode* waiting_thrds;
 } KEvent;
+
+typedef struct {
+    KObject hdr;
+} KSemaphore;
+
+typedef struct {
+    KObject hdr;
+} KMutex;
 
 typedef struct {
     KObject hdr;
@@ -76,8 +89,13 @@ u32 thread_create(HLE3DS* s, u32 entrypoint, u32 stacktop, u32 priority,
                   u32 arg);
 bool thread_reschedule(HLE3DS* s);
 
-KEvent* event_create();
+void thread_sleep(KThread* t);
+bool thread_wakeup(KThread* t, KObject* reason);
+
+KEvent* event_create(bool sticky);
 void event_signal(HLE3DS* s, KEvent* ev);
-void event_wait(HLE3DS* s, KEvent* ev);
+
+bool sync_wait(HLE3DS* s, KObject* o);
+void sync_cancel(KThread* t, KObject* o);
 
 #endif

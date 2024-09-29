@@ -21,8 +21,8 @@ void hle3ds_handle_svc(HLE3DS* s, u32 num) {
                R(0), R(1), R(2), R(3), s->cpu.pc, s->cpu.lr);
         return;
     }
-    linfo("svc 0x%x: %s(0x%x,0x%x,0x%x,0x%x,0x%x)", num, svc_names[num], R(0),
-          R(1), R(2), R(3), R(4));
+    linfo("svc 0x%x: %s(0x%x,0x%x,0x%x,0x%x,0x%x) at %08x (lr=%08x)", num,
+          svc_names[num], R(0), R(1), R(2), R(3), R(4), R(15), R(14));
     svc_table[num](s);
 }
 
@@ -90,20 +90,32 @@ DECL_SVC(CreateThread) {
     if (priority < CUR_THREAD->priority) thread_reschedule(s);
 }
 
+DECL_SVC(ReleaseMutex) {
+    R(0) = 0;
+}
+
 DECL_SVC(CreateEvent) {
     MAKE_HANDLE(handle);
 
-    KEvent* event = event_create();
+    KEvent* event = event_create(R(1) == RESET_STICKY);
     event->hdr.refcount = 1;
     HANDLE_SET(handle, event);
 
-    linfo("created event with handle %x", handle);
+    linfo("created event with handle %x, sticky=%d", handle,
+          R(1) == RESET_STICKY);
 
     R(0) = 0;
     R(1) = handle;
 }
 
 DECL_SVC(ClearEvent) {
+    KEvent* e = HANDLE_GET_TYPED(R(0), KOT_EVENT);
+    if (!e) {
+        lerror("not an event");
+        R(0) = -1;
+        return;
+    }
+    e->signal = false;
     R(0) = 0;
 }
 
@@ -123,6 +135,7 @@ DECL_SVC(MapMemoryBlock) {
     linfo("mapping shared mem block %x at %08x", memblock, addr);
 
     shmem->vaddr = addr;
+    shmem->mapped = true;
 
     hle3ds_vmmap(s, addr, PAGE_SIZE, perm, MEMST_SHARED, false);
 
@@ -165,7 +178,7 @@ DECL_SVC(ArbitrateAddress) {
             if (value < 0) {
                 KListNode** cur = &arbiter->waiting_thrds;
                 while (*cur) {
-                    KThread* t = (KThread*) (*cur)->val;
+                    KThread* t = (KThread*) (*cur)->key;
                     if (t->waiting_addr == addr) {
                         linfo("waking up thread %d", t->id);
                         t->state = THRD_READY;
@@ -180,7 +193,7 @@ DECL_SVC(ArbitrateAddress) {
                     KListNode** toRemove = NULL;
                     KListNode** cur = &arbiter->waiting_thrds;
                     while (*cur) {
-                        KThread* t = (KThread*) (*cur)->val;
+                        KThread* t = (KThread*) (*cur)->key;
                         if (t->waiting_addr == addr) {
                             if (t->priority < maxprio) {
                                 maxprio = t->priority;
@@ -190,9 +203,8 @@ DECL_SVC(ArbitrateAddress) {
                         cur = &(*cur)->next;
                     }
                     if (!toRemove) break;
-                    KThread* t = (KThread*) (*toRemove)->val;
-                    linfo("waking up thread %d", t->id);
-                    t->state = THRD_READY;
+                    KThread* t = (KThread*) (*toRemove)->key;
+                    thread_wakeup(t, &arbiter->hdr);
                     klist_remove(toRemove);
                 }
             }
@@ -204,9 +216,10 @@ DECL_SVC(ArbitrateAddress) {
         case ARBITRATE_WAIT:
             if (*(s32*) PTR(addr) < value) {
                 klist_insert(&arbiter->waiting_thrds, &CUR_THREAD->hdr);
-                CUR_THREAD->state = THRD_SLEEP;
+                klist_insert(&CUR_THREAD->waiting_objs, &arbiter->hdr);
                 CUR_THREAD->waiting_addr = addr;
                 linfo("waiting on address %08x", addr);
+                thread_sleep(CUR_THREAD);
                 thread_reschedule(s);
             }
             break;
@@ -243,14 +256,53 @@ DECL_SVC(WaitSynchronization1) {
     }
     R(0) = 0;
 
-    switch (obj->type) {
-        case KOT_EVENT:
-            linfo("waiting on event handle %x", handle);
-            event_wait(s, (KEvent*) obj);
+    if (sync_wait(s, obj)) {
+        linfo("waiting on handle %x", handle);
+        klist_insert(&CUR_THREAD->waiting_objs, obj);
+        thread_sleep(CUR_THREAD);
+        thread_reschedule(s);
+    }
+}
+
+DECL_SVC(WaitSynchronizationN) {
+    u32* handles = PTR(R(1));
+    int count = R(2);
+    bool waitAll = R(3);
+
+    bool wokeup = false;
+    int wokeupi = 0;
+
+    for (int i = 0; i < count; i++) {
+        KObject* obj = HANDLE_GET(handles[i]);
+        if (!obj) {
+            lerror("invalid handle");
+            continue;
+        }
+        if (sync_wait(s, obj)) {
+            linfo("waiting on handle %x", handles[i]);
+            klist_insert(&CUR_THREAD->waiting_objs, obj);
+            CUR_THREAD->waiting_objs->val = i;
+        } else {
+            wokeup = true;
+            wokeupi = i;
             break;
-        default:
-            R(0) = -1;
-            lerror("cannot wait on this %d", obj->type);
+        }
+    }
+
+    R(0) = 0;
+
+    if ((!waitAll && wokeup) || !CUR_THREAD->waiting_objs) {
+        KListNode** cur = &CUR_THREAD->waiting_objs;
+        while (*cur) {
+            sync_cancel(CUR_THREAD, (*cur)->key);
+            klist_remove(cur);
+        }
+        R(1) = wokeupi;
+    } else {
+        linfo("waiting on %d handles", count);
+        CUR_THREAD->wait_all = waitAll;
+        thread_sleep(CUR_THREAD);
+        thread_reschedule(s);
     }
 }
 
@@ -282,6 +334,12 @@ DECL_SVC(ConnectToPort) {
         session->hdr.refcount = 1;
         HANDLE_SET(h, session);
         R(1) = h;
+    } else if (!strcmp(port, "err:f")) {
+        linfo("connected to port '%s' with handle %x", port, h);
+        KSession* session = session_create(port_handle_errf);
+        session->hdr.refcount = 1;
+        HANDLE_SET(h, session);
+        R(1) = h;
     } else {
         R(0) = -1;
         lerror("unknown port '%s'", port);
@@ -299,6 +357,11 @@ DECL_SVC(SendSyncRequest) {
     IPCHeader cmd = {*(u32*) PTR(cmd_addr)};
     session->handler(s, cmd, CUR_TLS + IPC_CMD_OFF);
     R(0) = 0;
+}
+
+DECL_SVC(GetProcessId) {
+    R(0) = 0;
+    R(1) = 0;
 }
 
 DECL_SVC(GetResourceLimit) {

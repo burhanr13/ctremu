@@ -6,4 +6,6 @@
 
 DECL_PORT(fs);
 
+DECL_PORT(fs_romfs);
+
 #endif

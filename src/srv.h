@@ -35,6 +35,10 @@ KSession* session_create(PortRequestHandler f);
 #define DECL_PORT(name)                                                        \
     void port_handle_##name(HLE3DS* s, IPCHeader cmd, u32 cmd_addr)
 
+u32 srvobj_make_handle(HLE3DS* s, KObject* o);
+
 DECL_PORT(srv);
+
+DECL_PORT(errf);
 
 #endif

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include "3ds.h"
 #include "filesystems.h"
 #include "svc_types.h"
 
@@ -49,6 +50,9 @@ u32 load_elf(HLE3DS* s, char* filename) {
     free(phdrs);
 
     fclose(fp);
+
+    s->gamecard.fp = NULL;
+
     return ehdr.e_entry;
 }
 
@@ -56,36 +60,37 @@ u32 load_ncsd(HLE3DS* s, char* filename) {
     FILE* fp = fopen(filename, "rb");
     if (!fp) return -1;
 
-    NCSDHeader hdr;
-    fread(&hdr, sizeof hdr, 1, fp);
+    NCSDHeader hdrncsd;
+    fread(&hdrncsd, sizeof hdrncsd, 1, fp);
 
-    u32 base = hdr.part[0].offset * 0x200;
+    u32 base = hdrncsd.part[0].offset * 0x200;
+    u32 ncchbase = base;
 
     fseek(fp, base, SEEK_SET);
 
-    NCCHHeader hdr2;
-    fread(&hdr2, sizeof hdr2, 1, fp);
+    NCCHHeader hdrncch;
+    fread(&hdrncch, sizeof hdrncch, 1, fp);
 
     ExHeader exhdr;
     fread(&exhdr, sizeof exhdr, 1, fp);
 
     linfo("loading code from exefs");
 
-    base += hdr2.exefs.offset * 0x200;
+    base += hdrncch.exefs.offset * 0x200;
 
     fseek(fp, base, SEEK_SET);
 
-    ExeFSHeader hdr3;
-    fread(&hdr3, sizeof hdr3, 1, fp);
+    ExeFSHeader hdrexefs;
+    fread(&hdrexefs, sizeof hdrexefs, 1, fp);
 
     base += 0x200;
 
     u32 codeoffset = 0;
     u32 codesize = 0;
     for (int i = 0; i < 10; i++) {
-        if (!strcmp(hdr3.file[i].name, ".code")) {
-            codeoffset = hdr3.file[i].offset;
-            codesize = hdr3.file[i].size;
+        if (!strcmp(hdrexefs.file[i].name, ".code")) {
+            codeoffset = hdrexefs.file[i].offset;
+            codesize = hdrexefs.file[i].size;
         }
     }
     if (!codesize) return -1;
@@ -121,7 +126,12 @@ u32 load_ncsd(HLE3DS* s, char* filename) {
            exhdr.sci.data.size);
 
     free(code);
-    fclose(fp);
+
+    s->gamecard.fp = fp;
+    s->gamecard.exheader_off = ncchbase + 0x200;
+    s->gamecard.exefs_off = ncchbase + hdrncch.exefs.offset * 0x200;
+    s->gamecard.romfs_off = ncchbase + hdrncch.romfs.offset * 0x200;
+    
     return exhdr.sci.text.vaddr;
 }
 

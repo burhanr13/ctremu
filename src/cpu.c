@@ -45,7 +45,6 @@ bool cpu_run(HLE3DS* s, int cycles) {
 #endif
         arm_exec_jit(&s->cpu);
         if (s->cpu.wfe) {
-            s->cpu.wfe = false;
             return false;
         }
     }

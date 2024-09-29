@@ -3,6 +3,7 @@
 
 #include "arm/arm_core.h"
 #include "kernel.h"
+#include "loader.h"
 #include "memory.h"
 #include "pica/gpu.h"
 #include "scheduler.h"
@@ -30,6 +31,8 @@ typedef struct _3DS {
     KProcess process;
 
     ServiceData services;
+
+    GameCard gamecard;
 
     bool frame_complete;
 

@@ -5,20 +5,41 @@
 #include "svc.h"
 
 #include "services/apt.h"
+#include "services/dsp.h"
 #include "services/fs.h"
 #include "services/gsp.h"
 #include "services/hid.h"
 
-void init_services(HLE3DS* s) {
-    s->services.gsp.event = NULL;
-    s->services.gsp.sharedmem.hdr.type = KOT_SHAREDMEM;
-    s->services.gsp.sharedmem.hdr.refcount = 1;
+void srvobj_init(KObject* hdr, KObjType t) {
+    hdr->type = t;
+    hdr->refcount = 1;
+}
 
-    s->services.hid.sharedmem.hdr.type = KOT_SHAREDMEM;
-    s->services.hid.sharedmem.hdr.refcount = 1;
+u32 srvobj_make_handle(HLE3DS* s, KObject* o) {
+    u32 handle = handle_new(s);
+    if (!handle) return handle;
+    HANDLE_SET(handle, o);
+    o->refcount++;
+    return handle;
+}
+
+void init_services(HLE3DS* s) {
+    srvobj_init(&s->services.notif_sem.hdr, KOT_SEMAPHORE);
+
+    srvobj_init(&s->services.apt.lock.hdr, KOT_MUTEX);
+    srvobj_init(&s->services.apt.notif_event.hdr, KOT_EVENT);
+    s->services.apt.notif_event.sticky = true;
+    srvobj_init(&s->services.apt.resume_event.hdr, KOT_EVENT);
+    s->services.apt.resume_event.sticky = true;
+    s->services.apt.resume_event.signal = true;
+
+    s->services.gsp.event = NULL;
+    srvobj_init(&s->services.gsp.sharedmem.hdr, KOT_SHAREDMEM);
+
+    srvobj_init(&s->services.hid.sharedmem.hdr, KOT_SHAREDMEM);
     for (int i = 0; i < HIDEVENT_MAX; i++) {
-        s->services.hid.events[i].hdr.type = KOT_EVENT;
-        s->services.hid.events[i].hdr.refcount = 1;
+        srvobj_init(&s->services.hid.events[i].hdr, KOT_EVENT);
+        s->services.hid.events[i].sticky = true;
     }
 }
 
@@ -33,6 +54,22 @@ DECL_PORT(srv) {
 #define IS(_name) (!strcmp(name, _name))
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
+        case 0x0001: {
+            cmd_params[0] = MAKE_IPCHEADER(1, 0);
+            cmd_params[1] = 0;
+            break;
+        }
+        case 0x0002: {
+            cmd_params[0] = MAKE_IPCHEADER(1, 2);
+            u32 h = srvobj_make_handle(s, &s->services.notif_sem.hdr);
+            if (h) {
+                cmd_params[3] = h;
+                cmd_params[1] = 0;
+            } else {
+                cmd_params[1] = -1;
+            }
+            break;
+        }
         case 0x0005: {
             char name[9];
             memcpy(name, &cmd_params[1], cmd_params[3]);
@@ -49,6 +86,8 @@ DECL_PORT(srv) {
                 handler = port_handle_gsp_gpu;
             } else if (IS("hid:USER") || IS("hid:SPVR")) {
                 handler = port_handle_hid;
+            } else if (IS("dsp::DSP")) {
+                handler = port_handle_dsp;
             } else {
                 lerror("unknown service '%s'", name);
                 cmd_params[1] = -1;
@@ -63,9 +102,49 @@ DECL_PORT(srv) {
             }
             break;
         }
+        case 0x000b:
+            cmd_params[0] = MAKE_IPCHEADER(2, 0);
+            cmd_params[1] = 0;
+            cmd_params[2] = 0;
+            break;
         default:
             lwarn("unknown command 0x%04x", cmd.command);
             break;
     }
 #undef IS
+}
+
+DECL_PORT(errf) {
+    u32* cmd_params = PTR(cmd_addr);
+    switch (cmd.command) {
+        case 0x0001: {
+            struct {
+                u32 ipcheader;
+                u8 type;
+                u8 revh;
+                u16 revl;
+                u32 resultcode;
+                u32 pc;
+                u32 pid;
+                u8 title[8];
+                u8 applet[8];
+                union {
+                    char message[0x60];
+                };
+            }* errinfo = (void*) cmd_params;
+
+            lerror("fatal error type %d, result %08x, pc %08x, message: %s",
+                   errinfo->type, errinfo->resultcode, errinfo->pc,
+                   errinfo->message);
+
+            cmd_params[0] = 0;
+            cmd_params[1] = 1;
+            break;
+        }
+        default:
+            lwarn("unknown command 0x%04x", cmd.command);
+            cmd_params[0] = MAKE_IPCHEADER(1, 0);
+            cmd_params[1] = -1;
+            break;
+    }
 }

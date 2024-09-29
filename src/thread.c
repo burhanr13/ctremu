@@ -24,6 +24,7 @@ void thread_init(HLE3DS* s, u32 entrypoint) {
     u32 tid = thread_create(s, entrypoint, STACK_BASE, 0x30, 0);
 
     s->process.handles[0] = &s->process.threads[tid]->hdr;
+    s->process.handles[0]->refcount = 2;
 
     load_context(s);
     CUR_THREAD->state = THRD_RUNNING;
@@ -74,35 +75,86 @@ bool thread_reschedule(HLE3DS* s) {
         s->cpu.wfe = true;
         linfo("all threads sleeping");
         return false;
+    } else {
+        s->cpu.wfe = false;
     }
+
     linfo("switching thread from %d to %d", CUR_THREAD->id, nexttid);
     save_context(s);
+    s->process.handles[0]->refcount--;
     s->process.handles[0] = &s->process.threads[nexttid]->hdr;
+    s->process.handles[0]->refcount++;
     load_context(s);
     return true;
 }
 
-void thread_wakeup(KThread* t, KObject* reason) {
-    t->state = THRD_READY;
+void thread_sleep(KThread* t) {
+    linfo("sleeping thread %d", t->id);
+    t->state = THRD_SLEEP;
 }
 
-KEvent* event_create() {
+bool thread_wakeup(KThread* t, KObject* reason) {
+    t->context.r[1] = klist_remove_key(&t->waiting_objs, reason);
+    if (!t->waiting_objs || !t->wait_all) {
+        linfo("waking up thread %d", t->id);
+        KListNode** cur = &t->waiting_objs;
+        while (*cur) {
+            sync_cancel(t, (*cur)->key);
+            klist_remove(cur);
+        }
+        t->state = THRD_READY;
+        return true;
+    }
+    return false;
+}
+
+KEvent* event_create(bool sticky) {
     KEvent* ev = calloc(1, sizeof *ev);
     ev->hdr.type = KOT_EVENT;
+    ev->sticky = sticky;
     return ev;
 }
 
 void event_signal(HLE3DS* s, KEvent* ev) {
     KListNode** cur = &ev->waiting_thrds;
     while (*cur) {
-        thread_wakeup((KThread*) (*cur)->val, &ev->hdr);
+        thread_wakeup((KThread*) (*cur)->key, &ev->hdr);
         klist_remove(cur);
     }
     thread_reschedule(s);
+    if (ev->sticky) ev->signal = true;
 }
 
-void event_wait(HLE3DS* s, KEvent* ev) {
-    klist_insert(&ev->waiting_thrds, &CUR_THREAD->hdr);
-    CUR_THREAD->state = THRD_SLEEP;
-    thread_reschedule(s);
+bool sync_wait(HLE3DS* s, KObject* o) {
+    switch (o->type) {
+        case KOT_EVENT: {
+            KEvent* event = (KEvent*) o;
+            if (event->signal) return false;
+            klist_insert(&event->waiting_thrds, &CUR_THREAD->hdr);
+            return true;
+            break;
+        }
+        case KOT_MUTEX: {
+            return false;
+        }
+        case KOT_SEMAPHORE: {
+            return true;
+        }
+        default:
+            R(0) = -1;
+            lerror("cannot wait on this %d", o->type);
+            return false;
+    }
+}
+
+void sync_cancel(KThread* t, KObject* o) {
+    switch (o->type) {
+        case KOT_EVENT: {
+            KEvent* event = (KEvent*) o;
+            klist_remove_key(&event->waiting_thrds, &t->hdr);
+            break;
+        }
+        default:
+            break;
+    }
 }

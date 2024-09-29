@@ -57,15 +57,18 @@ void hle3ds_init(HLE3DS* s, char* romfile) {
 void hle3ds_destroy(HLE3DS* s) {
     cpu_free(s);
 
+    if (s->gamecard.fp) fclose(s->gamecard.fp);
+
     hle3ds_memory_destroy(s);
 }
 
 void hle3ds_run_frame(HLE3DS* s) {
     while (!s->frame_complete) {
-        cpu_run(s, FIFO_peek(s->sched.event_queue).time - s->sched.now);
+        if (!s->cpu.wfe) {
+            cpu_run(s, FIFO_peek(s->sched.event_queue).time - s->sched.now);
+        }
         run_next_event(&s->sched);
-        while (s->cpu.wfe) {
-            s->cpu.wfe = false;
+        while (s->cpu.wfe && !s->frame_complete) {
             run_next_event(&s->sched);
         }
     }

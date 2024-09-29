@@ -1,7 +1,16 @@
 #ifndef LOADER_H
 #define LOADER_H
 
-#include "3ds.h"
+#include "types.h"
+
+typedef struct _3DS HLE3DS;
+
+typedef struct {
+    FILE* fp;
+    u32 exheader_off;
+    u32 exefs_off;
+    u32 romfs_off;
+} GameCard;
 
 u32 load_elf(HLE3DS* s, char* filename);
 u32 load_ncsd(HLE3DS* s, char* filename);

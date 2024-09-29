@@ -14,7 +14,7 @@ u32 handle_new(HLE3DS* s) {
 
 void klist_insert(KListNode** l, KObject* o) {
     KListNode* newNode = malloc(sizeof *newNode);
-    newNode->val = o;
+    newNode->key = o;
     newNode->next = *l;
     *l = newNode;
 }
@@ -23,6 +23,18 @@ void klist_remove(KListNode** l) {
     KListNode* cur = *l;
     *l = cur->next;
     free(cur);
+}
+
+u32 klist_remove_key(KListNode** l, KObject* o) {
+    while (*l) {
+        if ((*l)->key == o) {
+            u32 v = (*l)->val;
+            klist_remove(l);
+            return v;
+        }
+        l = &(*l)->next;
+    }
+    return 0;
 }
 
 void kobject_destroy(KObject* o) {

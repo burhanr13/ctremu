@@ -29,6 +29,12 @@ enum {
 };
 
 enum {
+    RESET_ONESHOT,
+    RESET_STICKY,
+    RESET_PULSE,
+};
+
+enum {
     ARBITRATE_SIGNAL,
     ARBITRATE_WAIT,
     ARBITRATE_DEC_WAIT,
