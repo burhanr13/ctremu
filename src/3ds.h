@@ -24,6 +24,7 @@ typedef struct _3DS {
     GPU gpu;
 
     int fcram_fd;
+    int vram_fd;
 
     u8* physmem;
     u8* virtmem;
@@ -46,8 +47,10 @@ typedef struct _3DS {
 #define PAGE_SIZE BIT(12)
 
 #define FCRAMSIZE BIT(27)
+#define VRAMSIZE (6 * BIT(20))
 
 #define FCRAM_PBASE BIT(29)
+#define VRAM_PBASE 0x18000000
 
 #define HEAP_BASE BIT(27)
 
@@ -55,6 +58,8 @@ typedef struct _3DS {
 #define STACK_SIZE BIT(14)
 
 #define LINEAR_HEAP_BASE 0x14000000
+
+#define VRAMBASE 0x1f000000
 
 #define DSPMEM 0x1ff00000
 #define DSPBUFBIT BIT(17)

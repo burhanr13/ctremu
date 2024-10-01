@@ -106,6 +106,12 @@ typedef struct _GPU {
                     u32 _230[2];
                     u32 fixattr_idx;
                     u32 fixattr_data[3];
+                    u32 _236[0x28];
+                    struct {
+                        u32 outmapcount : 8;
+                        u32 mode : 8;
+                        u32 unk : 16;
+                    } prim_config;
                 };
                 u32 w[0x80];
             } geom;

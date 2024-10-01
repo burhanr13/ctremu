@@ -119,6 +119,11 @@ void gsp_handle_command(HLE3DS* s) {
     if (cmds->count == 0) return;
 
     switch (cmds->d[cmds->cur].id) {
+        case 0x00: {
+            linfo("dma request");
+            gsp_handle_event(s, GSPEVENT_DMA);
+            break;
+        }
         case 0x01: {
             u32 bufaddr = cmds->d[cmds->cur].args[0];
             u32 bufsize = cmds->d[cmds->cur].args[1];

@@ -593,7 +593,27 @@ DECL_ARM_COMPILE(sat_arith) {
 
 DECL_ARM_COMPILE(pack_sat) {
     if (!instr.pack_sat.p) {
-        lwarn("unknown sat at %08x", addr);
+        if (instr.pack_sat.u) {
+            u32 shamt = instr.pack_sat.shift;
+            u32 satamt = instr.pack_sat.rn | instr.pack_sat.h << 4;
+            EMIT_LOAD_REG(instr.pack_sat.rm);
+            if (instr.pack_sat.x) {
+                if (shamt) {
+                    EMITVI(ASR, LASTV, shamt);
+                } else {
+                    EMITVI(ASR, LASTV, 31);
+                }
+            } else {
+                if (shamt) {
+                    EMITVI(LSL, LASTV, shamt);
+                }
+            }
+            // set q flag
+            EMITIV(USAT, satamt, LASTV);
+            EMITV_STORE_REG(instr.pack_sat.rd, LASTV);
+        } else {
+            lwarn("unknown sat %08x at %08x", instr.w, addr);
+        }
     } else if (instr.pack_sat.x) {
         if (instr.pack_sat.s) {
             EMIT_LOAD_REG(instr.pack_sat.rm);
@@ -625,7 +645,7 @@ DECL_ARM_COMPILE(pack_sat) {
             EMITV_STORE_REG(instr.pack_sat.rd,
                             EMIT0V(REV, EMIT_LOAD_REG(instr.pack_sat.rm)));
         } else {
-            lwarn("unknown pack at %08x", addr);
+            lwarn("unknown pack %08x at %08x", instr.w, addr);
         }
     }
     return true;

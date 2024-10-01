@@ -70,6 +70,24 @@ void hle3ds_memory_init(HLE3DS* s) {
         exit(1);
     }
 
+    s->vram_fd = memfd_create(".vram", 0);
+    if (s->vram_fd < 0 || ftruncate(s->vram_fd, VRAMSIZE) < 0) {
+        perror("memfd_create");
+        exit(1);
+    }
+    ptr = mmap(&s->physmem[VRAM_PBASE], VRAMSIZE, PROT_READ | PROT_WRITE,
+               MAP_SHARED | MAP_FIXED, s->vram_fd, 0);
+    if (ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
+    ptr = mmap(&s->virtmem[VRAMBASE], VRAMSIZE, PROT_READ | PROT_WRITE,
+               MAP_SHARED | MAP_FIXED, s->vram_fd, 0);
+    if (ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
+
     VMBlock* initblk = malloc(sizeof(VMBlock));
     *initblk = (VMBlock){
         .startpg = 0, .endpg = BIT(20), .perm = 0, .state = MEMST_FREE};
@@ -94,6 +112,7 @@ void hle3ds_memory_destroy(HLE3DS* s) {
     munmap(s->virtmem, BITL(32));
 
     close(s->fcram_fd);
+    close(s->vram_fd);
 }
 
 void insert_vmblock(HLE3DS* s, VMBlock* n) {

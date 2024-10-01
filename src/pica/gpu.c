@@ -211,19 +211,24 @@ void load_vtx(GPU* gpu, int i) {
 }
 
 void store_vtx(GPU* gpu, int i, Vertex* vbuf) {
-    vbuf[i].pos[0] = gpu->out[0][0];
-    vbuf[i].pos[1] = gpu->out[0][1];
-    vbuf[i].pos[2] = gpu->out[0][2];
-    vbuf[i].pos[3] = gpu->out[0][3];
-    vbuf[i].color[0] = gpu->out[2][0];
-    vbuf[i].color[1] = gpu->out[2][1];
-    vbuf[i].color[2] = gpu->out[2][2];
-    vbuf[i].color[3] = gpu->out[2][3];
     for (int o = 0; o < 7; o++) {
         for (int j = 0; j < 4; j++) {
             u8 sem = gpu->io.raster.sh_outmap[o][j];
             if (sem < 0x18) vbuf[i].semantics[sem] = gpu->out[o][j];
         }
+    }
+}
+
+static inline int primMode(int m) {
+    switch (m) {
+        case 0:
+            return GL_TRIANGLES;
+        case 1:
+            return GL_TRIANGLE_STRIP;
+        case 2:
+            return GL_TRIANGLE_FAN;
+        default:
+            return GL_TRIANGLES;
     }
 }
 
@@ -237,25 +242,34 @@ void gpu_drawarrays(GPU* gpu) {
     }
     glBufferData(GL_ARRAY_BUFFER, gpu->io.geom.nverts * sizeof(Vertex), vbuf,
                  GL_STREAM_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, gpu->io.geom.nverts);
+    glDrawArrays(primMode(gpu->io.geom.prim_config.mode), 0,
+                 gpu->io.geom.nverts);
 }
 
 void gpu_drawelements(GPU* gpu) {
-    linfo("drawing elements nverts=%d", gpu->io.geom.nverts);
-    Vertex vbuf[gpu->io.geom.nverts * 2];
+    printfln("drawing elements nverts=%d primmode=%d", gpu->io.geom.nverts,
+             gpu->io.geom.prim_config.mode);
+    int minind = 0xffff, maxind = 0;
     void* indexbuf = PTR(gpu->io.geom.attr_base * 8 + gpu->io.geom.indexbufoff);
-    for (int i = 0; i < gpu->io.geom.nverts * 2; i++) {
+    for (int i = 0; i < gpu->io.geom.nverts; i++) {
         int idx;
         if (gpu->io.geom.indexfmt) {
             idx = ((u16*) indexbuf)[i];
         } else {
             idx = ((u8*) indexbuf)[i];
         }
-        load_vtx(gpu, idx);
-        exec_vshader(gpu);
-        store_vtx(gpu, i, vbuf);
+        if (idx < minind) minind = idx;
+        if (idx > maxind) maxind = idx;
     }
-    glBufferData(GL_ARRAY_BUFFER, 2 * gpu->io.geom.nverts * sizeof(Vertex),
-                 vbuf, GL_STREAM_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, 2 * gpu->io.geom.nverts);
+    Vertex vbuf[maxind + 1 - minind];
+    for (int i = minind; i <= maxind; i++) {
+        load_vtx(gpu, i - minind);
+        exec_vshader(gpu);
+        store_vtx(gpu, i - minind, vbuf);
+    }
+    glBufferData(GL_ARRAY_BUFFER, (maxind + 1 - minind) * sizeof(Vertex), vbuf,
+                 GL_STREAM_DRAW);
+    glDrawElements(primMode(gpu->io.geom.prim_config.mode), gpu->io.geom.nverts,
+                   gpu->io.geom.indexfmt ? GL_UNSIGNED_SHORT : GL_UNSIGNED_BYTE,
+                   indexbuf);
 }
