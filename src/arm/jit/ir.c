@@ -1,8 +1,8 @@
 #include "ir.h"
 
-#include "jit.h"
 #include "../media.h"
 #include "../vfp.h"
+#include "jit.h"
 
 bool iropc_hasresult(IROpcode opc) {
     if (opc > IR_NOP) return true;
@@ -52,6 +52,7 @@ bool iropc_iscallback(IROpcode opc) {
         case IR_CP15_READ:
         case IR_CP15_WRITE:
         case IR_MEDIA_UADD8:
+        case IR_MEDIA_UQSUB8:
         case IR_MEDIA_SEL:
             return true;
         default:
@@ -67,6 +68,7 @@ bool iropc_ispure(IROpcode opc) {
         case IR_SBC:
         case IR_GETCIFZ:
         case IR_MEDIA_UADD8:
+        case IR_MEDIA_UQSUB8:
         case IR_MEDIA_SEL:
             return false;
         default:
@@ -361,6 +363,10 @@ void ir_interpret(IRBlock* block, ArmCore* cpu) {
                 v[i] = media_uadd8(cpu, OP(1), OP(2));
                 break;
             }
+            case IR_MEDIA_UQSUB8: {
+                v[i] = media_uqsub8(cpu, OP(1), OP(2));
+                break;
+            }
             case IR_MEDIA_SEL: {
                 v[i] = media_sel(cpu, OP(1), OP(2));
                 break;
@@ -603,9 +609,11 @@ void ir_disasm_instr(IRInstr inst, int i) {
         case IR_CLZ:
             DISASM(clz, 1, 0, 1);
         case IR_REV:
-            DISASM(rev,1,0,1);
+            DISASM(rev, 1, 0, 1);
         case IR_MEDIA_UADD8:
             DISASM(uadd8, 1, 1, 1);
+        case IR_MEDIA_UQSUB8:
+            DISASM(uqsub8, 1, 1, 1);
         case IR_MEDIA_SEL:
             DISASM(sel, 1, 1, 1);
         case IR_GETN:

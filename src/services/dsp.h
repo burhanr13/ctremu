@@ -6,6 +6,10 @@
 #include "../svc_types.h"
 #include "../thread.h"
 
+typedef struct {
+    KEvent* event;
+    KEvent semEvent;
+} DSPData;
 
 DECL_PORT(dsp);
 

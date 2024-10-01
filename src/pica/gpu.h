@@ -94,8 +94,8 @@ typedef struct _GPU {
                         };
                     } attrbuf[12];
                     struct {
-                        u32 indexoff : 31;
-                        u32 indexsize : 1;
+                        u32 indexbufoff : 31;
+                        u32 indexfmt : 1;
                     };
                     u32 nverts;
                     u32 config;
@@ -191,5 +191,6 @@ void gpu_clear_fb(GPU* gpu, u32 color);
 void gpu_run_command_list(GPU* gpu, u32* addr, u32 size);
 
 void gpu_drawarrays(GPU* gpu);
+void gpu_drawelements(GPU* gpu);
 
 #endif

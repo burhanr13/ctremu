@@ -286,9 +286,9 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
             case IR_VFP_READ64H:
                 break;
             case IR_VFP_WRITE64L: {
-                if(inst.imm2) {
+                if (inst.imm2) {
                     mov(edx, inst.op2);
-                }else{
+                } else {
                     mov(edx, getOp(inst.op2));
                 }
                 IRInstr hinst = ir->code.d[i + 1];
@@ -728,15 +728,9 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
             case IR_CLZ: {
                 auto& dest = getOp(i);
                 if (inst.imm2) {
-                    u32 op = inst.op2;
-                    u32 ct = 0;
-                    if (op == 0) ct = 32;
-                    else
-                        while (!(op & BIT(31))) {
-                            op <<= 1;
-                            ct++;
-                        }
-                    mov(dest, ct);
+                    mov(edx, inst.op2);
+                    lzcnt(edx, edx);
+                    mov(dest, edx);
                 } else {
                     if (dest.isMEM()) {
                         lzcnt(edx, getOp(inst.op2));
@@ -770,6 +764,23 @@ Code::Code(IRBlock* ir, RegAllocation* regalloc, ArmCore* cpu)
                 }
                 mov(rdi, rbx);
                 mov(rax, (u64) media_uadd8);
+                call(rax);
+                mov(getOp(i), eax);
+                break;
+            }
+            case IR_MEDIA_UQSUB8: {
+                if (inst.imm2) {
+                    mov(edx, inst.op2);
+                } else {
+                    mov(edx, getOp(inst.op2));
+                }
+                if (inst.imm1) {
+                    mov(esi, inst.op1);
+                } else {
+                    mov(esi, getOp(inst.op1));
+                }
+                mov(rdi, rbx);
+                mov(rax, (u64) media_uqsub8);
                 call(rax);
                 mov(getOp(i), eax);
                 break;

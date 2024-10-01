@@ -85,6 +85,7 @@ typedef enum {
     IR_REV,
 
     IR_MEDIA_UADD8,
+    IR_MEDIA_UQSUB8,
     IR_MEDIA_SEL,
 
     IR_GETN,

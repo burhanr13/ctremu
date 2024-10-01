@@ -11,7 +11,7 @@
 
 #define eprintf(format, ...) fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__)
 
-// #define NOINFO
+#define NOINFO
 
 #ifndef NOINFO
 #define linfo(format, ...)                                                     \

@@ -56,6 +56,9 @@ typedef struct _3DS {
 
 #define LINEAR_HEAP_BASE 0x14000000
 
+#define DSPMEM 0x1ff00000
+#define DSPBUFBIT BIT(17)
+
 #define CONFIG_MEM 0x1ff80000
 #define SHARED_PAGE 0x1ff81000
 

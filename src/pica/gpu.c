@@ -40,7 +40,7 @@ u32 f31tof32(u32 i) {
 
 void gpu_clear_fb(GPU* gpu, u32 color) {
     glClearColor((color >> 24) / 256.f, ((color >> 16) & 0xff) / 256.f,
-                ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
+                 ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -49,6 +49,9 @@ void gpu_write_internalreg(GPU* gpu, u16 id, u32 param, u32 mask) {
     switch (id) {
         case GPUREG(geom.drawarrays):
             gpu_drawarrays(gpu);
+            break;
+        case GPUREG(geom.drawelements):
+            gpu_drawelements(gpu);
             break;
         case GPUREG(geom.fixattr_data[0])... GPUREG(geom.fixattr_data[2]): {
             fvec* fattr;
@@ -225,6 +228,7 @@ void store_vtx(GPU* gpu, int i, Vertex* vbuf) {
 }
 
 void gpu_drawarrays(GPU* gpu) {
+    linfo("drawing arrays nverts=%d", gpu->io.geom.nverts);
     Vertex vbuf[gpu->io.geom.nverts];
     for (int i = 0; i < gpu->io.geom.nverts; i++) {
         load_vtx(gpu, i + gpu->io.geom.vtx_off);
@@ -234,4 +238,24 @@ void gpu_drawarrays(GPU* gpu) {
     glBufferData(GL_ARRAY_BUFFER, gpu->io.geom.nverts * sizeof(Vertex), vbuf,
                  GL_STREAM_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, gpu->io.geom.nverts);
+}
+
+void gpu_drawelements(GPU* gpu) {
+    linfo("drawing elements nverts=%d", gpu->io.geom.nverts);
+    Vertex vbuf[gpu->io.geom.nverts * 2];
+    void* indexbuf = PTR(gpu->io.geom.attr_base * 8 + gpu->io.geom.indexbufoff);
+    for (int i = 0; i < gpu->io.geom.nverts * 2; i++) {
+        int idx;
+        if (gpu->io.geom.indexfmt) {
+            idx = ((u16*) indexbuf)[i];
+        } else {
+            idx = ((u8*) indexbuf)[i];
+        }
+        load_vtx(gpu, idx);
+        exec_vshader(gpu);
+        store_vtx(gpu, i, vbuf);
+    }
+    glBufferData(GL_ARRAY_BUFFER, 2 * gpu->io.geom.nverts * sizeof(Vertex),
+                 vbuf, GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, 2 * gpu->io.geom.nverts);
 }

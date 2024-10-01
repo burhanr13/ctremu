@@ -24,7 +24,8 @@ DECL_PORT(gsp_gpu) {
         case 0x0013: {
             cmd_params[0] = MAKE_IPCHEADER(2, 2);
 
-            u32 shmemhandle = srvobj_make_handle(s,&s->services.gsp.sharedmem.hdr);
+            u32 shmemhandle =
+                srvobj_make_handle(s, &s->services.gsp.sharedmem.hdr);
             if (!shmemhandle) {
                 cmd_params[1] = -1;
                 return;
@@ -42,7 +43,7 @@ DECL_PORT(gsp_gpu) {
 
             linfo("RegisterInterruptRelayQueue with event handle=%x, "
                   "shmemhandle=%x",
-                  cmd_params[4], shmemhandle);
+                  cmd_params[3], shmemhandle);
             cmd_params[1] = 0;
             cmd_params[2] = 0;
             cmd_params[3] = 0;
@@ -51,6 +52,10 @@ DECL_PORT(gsp_gpu) {
         }
         case 0x0016:
             linfo("AcquireRight");
+            cmd_params[0] = MAKE_IPCHEADER(1, 0);
+            cmd_params[1] = 0;
+            break;
+        case 0x001e:
             cmd_params[0] = MAKE_IPCHEADER(1, 0);
             cmd_params[1] = 0;
             break;

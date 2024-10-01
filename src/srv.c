@@ -5,10 +5,12 @@
 #include "svc.h"
 
 #include "services/apt.h"
+#include "services/cfg.h"
 #include "services/dsp.h"
 #include "services/fs.h"
 #include "services/gsp.h"
 #include "services/hid.h"
+#include "services/ndm.h"
 
 void srvobj_init(KObject* hdr, KObjType t) {
     hdr->type = t;
@@ -35,6 +37,9 @@ void init_services(HLE3DS* s) {
 
     s->services.gsp.event = NULL;
     srvobj_init(&s->services.gsp.sharedmem.hdr, KOT_SHAREDMEM);
+
+    s->services.dsp.event = NULL;
+    srvobj_init(&s->services.dsp.semEvent.hdr, KOT_EVENT);
 
     srvobj_init(&s->services.hid.sharedmem.hdr, KOT_SHAREDMEM);
     for (int i = 0; i < HIDEVENT_MAX; i++) {
@@ -88,6 +93,10 @@ DECL_PORT(srv) {
                 handler = port_handle_hid;
             } else if (IS("dsp::DSP")) {
                 handler = port_handle_dsp;
+            } else if (IS("cfg:u")) {
+                handler = port_handle_cfg;
+            } else if (IS("ndm:u")) {
+                handler = port_handle_ndm;
             } else {
                 lerror("unknown service '%s'", name);
                 cmd_params[1] = -1;

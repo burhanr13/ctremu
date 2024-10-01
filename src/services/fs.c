@@ -71,7 +71,7 @@ DECL_PORT(fs_romfs) {
 
             cmd_params[0] = MAKE_IPCHEADER(2, 0);
             cmd_params[1] = 0;
-            fseek(s->gamecard.fp, s->gamecard.romfs_off + offset, SEEK_SET);
+            fseek(s->gamecard.fp, s->gamecard.romfs_off + 0x1000 + offset, SEEK_SET);
             cmd_params[2] = fread(data, 1, size, s->gamecard.fp);
             break;
         }

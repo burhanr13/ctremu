@@ -632,14 +632,48 @@ DECL_ARM_COMPILE(pack_sat) {
 }
 
 DECL_ARM_COMPILE(parallel_arith) {
-    if (instr.parallel_arith.u && instr.parallel_arith.op1 == 1 &&
-        instr.parallel_arith.b && instr.parallel_arith.op2 == 0) {
-        EMITV_STORE_REG(instr.parallel_arith.rd,
-                        EMITVV(MEDIA_UADD8,
-                               EMIT_LOAD_REG(instr.parallel_arith.rn),
-                               EMIT_LOAD_REG(instr.parallel_arith.rm)));
+    u32 vrn = EMIT_LOAD_REG(instr.parallel_arith.rn);
+    u32 vrm = EMIT_LOAD_REG(instr.parallel_arith.rm);
+
+    if (instr.parallel_arith.u) {
+        switch (instr.parallel_arith.op1) {
+            case 1:
+                if (instr.parallel_arith.b) {
+                    switch (instr.parallel_arith.op2) {
+                        case 0:
+                            EMITVV(MEDIA_UADD8, vrn, vrm);
+                            EMITV_STORE_REG(instr.parallel_arith.rd, LASTV);
+                            break;
+                        default:
+                            lwarn("unknown parallel arith uxxx8 %08x", instr.w);
+                            break;
+                    }
+                } else {
+                    lwarn("unknown parallel arith uxxx16 %08x", instr.w);
+                }
+                break;
+            case 2:
+                if (instr.parallel_arith.b) {
+                    switch (instr.parallel_arith.op2) {
+                        case 3:
+                            EMITVV(MEDIA_UQSUB8, vrn, vrm);
+                            EMITV_STORE_REG(instr.parallel_arith.rd, LASTV);
+                            break;
+                        default:
+                            lwarn("unknown parallel arith uqxxx8 %08x",
+                                  instr.w);
+                            break;
+                    }
+                } else {
+                    lwarn("unknown parallel arith uqxxx16 %08x", instr.w);
+                }
+                break;
+            case 3:
+                lwarn("unknown parallel arith uhxxxx %08x", instr.w);
+                break;
+        }
     } else {
-        lwarn("unknown parallel arith %08x", instr.w);
+        lwarn("unknown parallel arith sxxxxx %08x", instr.w);
     }
     return true;
 }
@@ -725,15 +759,41 @@ DECL_ARM_COMPILE(half_trans) {
             return true;
         }
     } else {
-        if (instr.half_trans.l) {
-            EMITV0(LOAD_MEM32, vaddr);
-            EMITV_STORE_REG(instr.half_trans.rd, LASTV);
-            return true;
-        } else {
-            EMIT_LOAD_REG(instr.half_trans.offlo);
-            EMITVV(STORE_MEM32, vaddr, LASTV);
-            EMITI_STORE_REG(instr.half_trans.rd, 0);
-            return true;
+        u32 op = instr.half_trans.i << 1 | instr.half_trans.w;
+        switch (op) {
+            case 0:
+                if (instr.half_trans.l) {
+                    EMITV0(LOAD_MEM32, vaddr);
+                    EMITV_STORE_REG(instr.half_trans.rd, LASTV);
+                } else {
+                    EMIT_LOAD_REG(instr.half_trans.offlo);
+                    EMITVV(STORE_MEM32, vaddr, LASTV);
+                    EMITI_STORE_REG(instr.half_trans.rd, 0);
+                }
+                return true;
+            case 2:
+                if (instr.half_trans.l) {
+                    EMITV0(LOAD_MEM8, vaddr);
+                    EMITV_STORE_REG(instr.half_trans.rd, LASTV);
+                } else {
+                    EMIT_LOAD_REG(instr.half_trans.offlo);
+                    EMITVV(STORE_MEM8, vaddr, LASTV);
+                    EMITI_STORE_REG(instr.half_trans.rd, 0);
+                }
+                return true;
+            case 3:
+                if (instr.half_trans.l) {
+                    EMITV0(LOAD_MEM16, vaddr);
+                    EMITV_STORE_REG(instr.half_trans.rd, LASTV);
+                } else {
+                    EMIT_LOAD_REG(instr.half_trans.offlo);
+                    EMITVV(STORE_MEM16, vaddr, LASTV);
+                    EMITI_STORE_REG(instr.half_trans.rd, 0);
+                }
+                return true;
+            default:
+                lwarn("unknown ldr/str ex");
+                return true;
         }
     }
 }

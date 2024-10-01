@@ -6,7 +6,7 @@
 #include "thread.h"
 
 //#define CPULOG
-// #define BREAK
+#define BREAK 0x2f6e6c
 
 void cpu_init(HLE3DS* s) {
     s->cpu.read8 = (void*) cpu_read8;

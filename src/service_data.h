@@ -3,6 +3,7 @@
 
 #include "thread.h"
 #include "services/apt.h"
+#include "services/dsp.h"
 #include "services/gsp.h"
 #include "services/hid.h"
 
@@ -13,6 +14,7 @@ typedef struct {
     APTData apt;
     GSPData gsp;
     HIDData hid;
+    DSPData dsp;
 
 } ServiceData;
 

@@ -90,6 +90,11 @@ DECL_SVC(CreateThread) {
     if (priority < CUR_THREAD->priority) thread_reschedule(s);
 }
 
+DECL_SVC(SleepThread) {
+    R(0) = 0;
+    thread_reschedule(s);
+}
+
 DECL_SVC(ReleaseMutex) {
     R(0) = 0;
 }
@@ -106,6 +111,18 @@ DECL_SVC(CreateEvent) {
 
     R(0) = 0;
     R(1) = handle;
+}
+
+DECL_SVC(SignalEvent) {
+    KEvent* e = HANDLE_GET_TYPED(R(0), KOT_EVENT);
+    if (!e) {
+        lerror("not an event");
+        R(0) = -1;
+        return;
+    }
+    event_signal(s, e);
+
+    R(0) = 0;
 }
 
 DECL_SVC(ClearEvent) {
@@ -180,8 +197,7 @@ DECL_SVC(ArbitrateAddress) {
                 while (*cur) {
                     KThread* t = (KThread*) (*cur)->key;
                     if (t->waiting_addr == addr) {
-                        linfo("waking up thread %d", t->id);
-                        t->state = THRD_READY;
+                        thread_wakeup(t, &arbiter->hdr);
                         klist_remove(cur);
                     } else {
                         cur = &(*cur)->next;

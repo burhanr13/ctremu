@@ -35,7 +35,6 @@ JITBlock* create_jit_block(ArmCore* cpu, u32 addr) {
     optimize_constprop(&ir);
     optimize_chainjumps(&ir);
     optimize_deadcode(&ir);
-    if (ir.loop) optimize_waitloop(&ir);
     optimize_blocklinking(&ir, cpu);
 
     block->end_addr = ir.end_addr;
