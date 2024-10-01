@@ -44,6 +44,10 @@ void renderer_gl_setup() {
     glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     glEnable(GL_DEPTH_TEST);
 
+#ifdef GPU_DEBUG
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#endif
+
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
@@ -51,6 +55,9 @@ void renderer_gl_setup() {
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    GLuint ebo;
+    glGenBuffers(1, &ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                           (void*) offsetof(Vertex, pos));
