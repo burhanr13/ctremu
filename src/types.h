@@ -13,7 +13,7 @@
 #define println() printf("\n")
 #define printfln(format, ...) printf(format "\n"__VA_OPT__(, ) __VA_ARGS__)
 
-//#define NOINFO
+#define NOINFO
 
 #ifndef NOINFO
 #define linfo(format, ...)                                                     \

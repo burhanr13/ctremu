@@ -3,6 +3,8 @@
 #include "../3ds.h"
 #include "hostshaders/hostshaders.h"
 
+#define WIREFRAME
+
 void renderer_gl_setup() {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vtxshadersrc, NULL);
@@ -44,7 +46,7 @@ void renderer_gl_setup() {
     glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     glEnable(GL_DEPTH_TEST);
 
-#ifdef GPU_DEBUG
+#ifdef WIREFRAME
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #endif
 

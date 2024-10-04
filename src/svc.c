@@ -366,7 +366,7 @@ DECL_SVC(SendSyncRequest) {
     KSession* session = HANDLE_GET_TYPED(R(0), KOT_SESSION);
     if (!session) {
         lerror("invalid session handle");
-        R(0) = -1;
+        R(0) = 0;
         return;
     }
     u32 cmd_addr = CUR_TLS + IPC_CMD_OFF;

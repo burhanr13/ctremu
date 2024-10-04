@@ -58,7 +58,12 @@ int main(int argc, char** argv) {
                 ctremu.running = false;
                 break;
             }
+            if (e.type == SDL_KEYDOWN) {
+                hotkey_press(e.key.keysym.sym);
+            }
         }
+
+        update_input(&ctremu.system);
 
         if (!ctremu.uncap) {
             cur_time = SDL_GetPerformanceCounter();

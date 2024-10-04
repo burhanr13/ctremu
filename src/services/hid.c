@@ -2,6 +2,8 @@
 
 #include "../3ds.h"
 
+#define HIDMEM ((HIDSharedMem*) PTR(s->services.hid.sharedmem.vaddr))
+
 DECL_PORT(hid) {
     u32* cmd_params = PTR(cmd_addr);
     switch (cmd.command) {
@@ -49,4 +51,34 @@ DECL_PORT(hid) {
             cmd_params[1] = -1;
             break;
     }
+}
+
+void hid_update_pad(HLE3DS* s, u32 btns, s16 cx, s16 cy) {
+    if (!s->services.hid.sharedmem.mapped) return;
+
+    int curidx = (HIDMEM->pad.idx + 1) % 8;
+    HIDMEM->pad.idx = curidx;
+
+    if (curidx == 0) {
+        HIDMEM->pad.prevtime = HIDMEM->pad.time;
+        HIDMEM->pad.time = s->sched.now;
+    }
+
+    u32 prevbtn = HIDMEM->pad.btns;
+
+    cx = (cx * 0x9c) >> 15;
+    cy = (cy * 0x9c) >> 15;
+
+    HIDMEM->pad.btns = btns;
+    HIDMEM->pad.cx = cx;
+    HIDMEM->pad.cy = cy;
+
+    HIDMEM->pad.entries[curidx].cx = cx;
+    HIDMEM->pad.entries[curidx].cx = cy;
+
+    HIDMEM->pad.entries[curidx].held = btns;
+    HIDMEM->pad.entries[curidx].pressed = btns & ~prevbtn;
+    HIDMEM->pad.entries[curidx].released = ~btns & prevbtn;
+
+    event_signal(s, &s->services.hid.events[HIDEVENT_PAD0]);
 }

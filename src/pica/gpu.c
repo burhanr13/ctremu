@@ -237,7 +237,7 @@ void gpu_drawarrays(GPU* gpu) {
 }
 
 void gpu_drawelements(GPU* gpu) {
-    printfln("drawing elements nverts=%d primmode=%d", gpu->io.geom.nverts,
+    linfo("drawing elements nverts=%d primmode=%d", gpu->io.geom.nverts,
              gpu->io.geom.prim_config.mode);
     int minind = 0xffff, maxind = 0;
     void* indexbuf = PTR(gpu->io.geom.attr_base * 8 + gpu->io.geom.indexbufoff);

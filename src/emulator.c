@@ -6,10 +6,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "3ds.h"
 #include "arm/arm.h"
 #include "arm/thumb.h"
 #include "emulator_state.h"
-#include "3ds.h"
+#include "services/hid.h"
 
 EmulatorState ctremu;
 
@@ -84,4 +85,31 @@ void hotkey_press(SDL_KeyCode key) {
         default:
             break;
     }
+}
+
+void update_input(HLE3DS* s) {
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
+
+    PadState btn;
+    btn.a = keys[SDL_SCANCODE_PERIOD];
+    btn.b = keys[SDL_SCANCODE_COMMA];
+    btn.x = keys[SDL_SCANCODE_L];
+    btn.y = keys[SDL_SCANCODE_K];
+    btn.l = keys[SDL_SCANCODE_SEMICOLON];
+    btn.r = keys[SDL_SCANCODE_SLASH];
+    btn.start = keys[SDL_SCANCODE_RETURN];
+    btn.select = keys[SDL_SCANCODE_RSHIFT];
+    btn.up = keys[SDL_SCANCODE_UP];
+    btn.down = keys[SDL_SCANCODE_DOWN];
+    btn.left = keys[SDL_SCANCODE_LEFT];
+    btn.right = keys[SDL_SCANCODE_RIGHT];
+    btn.cup = keys[SDL_SCANCODE_W];
+    btn.cdown = keys[SDL_SCANCODE_S];
+    btn.cleft = keys[SDL_SCANCODE_A];
+    btn.cright = keys[SDL_SCANCODE_D];
+
+    s16 cx = (btn.cleft - btn.cright) * INT16_MAX;
+    s16 cy = (btn.cup - btn.cdown) * INT16_MAX;
+
+    hid_update_pad(s, btn.w, cx, cy);
 }
