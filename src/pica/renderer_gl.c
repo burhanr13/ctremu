@@ -5,17 +5,41 @@
 
 // #define WIREFRAME
 
-#define BOT_GAP ((1 - (float) SCREEN_WIDTH_BOT / (float) SCREEN_WIDTH) / 2)
+#define BOT_GAP (1 - (float) SCREEN_WIDTH_BOT / (float) SCREEN_WIDTH)
 
 float quads[] = {
-    0,           0,   0, 0, //
-    0,           0.5, 0, 1, //
-    1,           0,   1, 0, //
-    1,           0.5, 1, 1, //
-    BOT_GAP,     0.5, 0, 0, //
-    BOT_GAP,     1,   0, 1, //
-    1 - BOT_GAP, 0.5, 1, 0, //
-    1 - BOT_GAP, 1,   1, 1, //
+    -1,
+    1,
+    0,
+    0,
+    -1,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    1,
+    -1 + BOT_GAP,
+    0,
+    0,
+    0,
+    -1 + BOT_GAP,
+    -1,
+    0,
+    1,
+    1 - BOT_GAP,
+    0,
+    1,
+    0,
+    1 - BOT_GAP,
+    -1,
+    1,
+    1,
 };
 
 GLuint make_shader(const char* vert, const char* frag) {
@@ -66,12 +90,14 @@ void bind_gpu(GLState* state) {
 #endif
 
     glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void renderer_gl_setup(GLState* state) {
 
     state->main.program = make_shader(mainvertsource, mainfragsource);
-    glUniform1i(glGetUniformLocation(state->main.program, "tex"), 0);
+    glUseProgram(state->main.program);
+    glUniform1i(glGetUniformLocation(state->main.program, "screen"), 0);
 
     glGenVertexArrays(1, &state->main.vao);
     glBindVertexArray(state->main.vao);
@@ -106,8 +132,6 @@ void renderer_gl_setup(GLState* state) {
                           (void*) offsetof(Vertex, color));
     glEnableVertexAttribArray(1);
 
-    glEnable(GL_DEPTH_TEST);
-
     for (int i = 0; i < 2; i++) {
         glGenFramebuffers(1, &state->fbs[i].fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, state->fbs[i].fbo);
@@ -122,14 +146,16 @@ void renderer_gl_setup(GLState* state) {
         glGenTextures(1, &state->fbs[i].tex_depthbuf);
         glBindTexture(GL_TEXTURE_2D, state->fbs[i].tex_depthbuf);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, SCREEN_WIDTH,
-                     SCREEN_HEIGHT, 0, GL_DEPTH24_STENCIL8,
-                     GL_UNSIGNED_INT_24_8, NULL);
+                     SCREEN_HEIGHT, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8,
+                     NULL);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
                                GL_TEXTURE_2D, state->fbs[i].tex_depthbuf, 0);
 
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            printfln("uh oh");
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
+
+    bind_gpu(state);
 }
 
 void render_gl_main(GLState* state) {
@@ -141,7 +167,12 @@ void render_gl_main(GLState* state) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
+    glDisable(GL_DEPTH_TEST);
+
     glViewport(0, 0, SCREEN_WIDTH, 2 * SCREEN_HEIGHT);
+
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glBindTexture(GL_TEXTURE_2D, state->fbs[state->fb_top].tex_colorbuf);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

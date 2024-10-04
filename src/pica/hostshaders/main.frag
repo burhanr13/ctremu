@@ -4,10 +4,10 @@ const char* mainfragsource = R"(
 in vec2 texcoord;
 out vec4 fragclr;
 
-uniform sampler2D tex;
+uniform sampler2D screen;
 
 void main() {
-    fragclr = texture(tex, texcoord);
+    fragclr = texture(screen, texcoord);
 }
 
 )";
