@@ -1,5 +1,7 @@
 #include "hostshaders.h"
 
-#include "vtxshader.glsl"
+#include "main.frag"
+#include "main.vert"
 
-#include "fragshader.glsl"
+#include "gpu.vert"
+#include "gpu.frag"

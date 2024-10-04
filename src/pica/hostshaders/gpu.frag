@@ -1,4 +1,4 @@
-const char* fragshadersrc = R"(
+const char* gpufragsource = R"(
 #version 410 core
 
 in vec4 outclr;

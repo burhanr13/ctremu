@@ -56,7 +56,7 @@ DECL_PORT(hid) {
 void hid_update_pad(HLE3DS* s, u32 btns, s16 cx, s16 cy) {
     if (!s->services.hid.sharedmem.mapped) return;
 
-    int curidx = (HIDMEM->pad.idx + 1) % 8;
+    int curidx = 0; //(HIDMEM->pad.idx + 1) % 8;
     HIDMEM->pad.idx = curidx;
 
     if (curidx == 0) {
@@ -80,5 +80,6 @@ void hid_update_pad(HLE3DS* s, u32 btns, s16 cx, s16 cy) {
     HIDMEM->pad.entries[curidx].pressed = btns & ~prevbtn;
     HIDMEM->pad.entries[curidx].released = ~btns & prevbtn;
 
+    linfo("signaling hid event pad0");
     event_signal(s, &s->services.hid.events[HIDEVENT_PAD0]);
 }

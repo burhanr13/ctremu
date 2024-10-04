@@ -17,8 +17,9 @@ int main(int argc, char** argv) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                         SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_Window* window = SDL_CreateWindow("ctremu", 0, 0, SCREEN_WIDTH,
-                                          SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("ctremu", SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
+                                          2 * SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
 
     SDL_GLContext glcontext = SDL_GL_CreateContext(window);
     if (!glcontext) {
@@ -27,7 +28,7 @@ int main(int argc, char** argv) {
     }
     glewInit();
 
-    renderer_gl_setup();
+    renderer_gl_setup(&ctremu.system.gpu.gl);
 
     Uint64 prev_time = SDL_GetPerformanceCounter();
     Uint64 prev_fps_update = prev_time;
@@ -49,6 +50,8 @@ int main(int argc, char** argv) {
                 elapsed = cur_time - prev_time;
             } while (ctremu.uncap && elapsed < frame_ticks);
         }
+
+        render_gl_main(&ctremu.system.gpu.gl);
 
         SDL_GL_SwapWindow(window);
 

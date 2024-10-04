@@ -132,8 +132,8 @@ DECL_SVC(ClearEvent) {
         R(0) = -1;
         return;
     }
-    e->signal = false;
     R(0) = 0;
+    e->signal = false;
 }
 
 DECL_SVC(MapMemoryBlock) {

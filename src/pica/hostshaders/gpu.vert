@@ -1,4 +1,4 @@
-const char* vtxshadersrc = R"(
+const char* gpuvertsource = R"(
 #version 410 core
 
 layout (location=0) in vec4 pos;

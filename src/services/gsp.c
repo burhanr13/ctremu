@@ -40,6 +40,7 @@ DECL_PORT(gsp_gpu) {
 
             s->services.gsp.event = event;
             event->hdr.refcount++;
+            event->sticky = true;
 
             linfo("RegisterInterruptRelayQueue with event handle=%x, "
                   "shmemhandle=%x",
@@ -71,6 +72,9 @@ void gsp_handle_event(HLE3DS* s, u32 arg) {
     if (arg == GSPEVENT_VBLANK0) {
         add_event(&s->sched, gsp_handle_event, GSPEVENT_VBLANK0, CPU_CLK / 60);
         add_event(&s->sched, gsp_handle_event, GSPEVENT_VBLANK1, CPU_CLK / 60);
+
+        gpu_reset_fbs(&s->gpu);
+
         s->frame_complete = true;
     }
 
@@ -94,9 +98,16 @@ void gsp_handle_event(HLE3DS* s, u32 arg) {
     }
 
     if (s->services.gsp.event) {
-        linfo("signaling gsp event");
+        linfo("signaling gsp event %d", arg);
         event_signal(s, s->services.gsp.event);
     }
+}
+
+u32 vaddr_to_paddr(u32 vaddr) {
+    if (vaddr >= VRAMBASE) {
+        return vaddr - VRAMBASE + VRAM_PBASE;
+    }
+    return vaddr - LINEAR_HEAP_BASE + FCRAM_PBASE;
 }
 
 void gsp_handle_command(HLE3DS* s) {
@@ -147,9 +158,8 @@ void gsp_handle_command(HLE3DS* s) {
                 if (cmd->buf[i].st) {
                     linfo("memory fill at fb %08x-%08x with %x", cmd->buf[i].st,
                           cmd->buf[i].end, cmd->buf[i].val);
-                    if (i == 0) {
-                        gpu_clear_fb(&s->gpu, cmd->buf[i].val);
-                    }
+                    gpu_set_fb_cur(&s->gpu, vaddr_to_paddr(cmd->buf[i].st));
+                    gpu_clear_fb(&s->gpu, cmd->buf[i].val);
                     gsp_handle_event(s, GSPEVENT_PSC0 + i);
                 }
             }
@@ -162,6 +172,16 @@ void gsp_handle_command(HLE3DS* s) {
             u32 dimout = cmds->d[cmds->cur].args[3];
             u32 flags = cmds->d[cmds->cur].args[4];
             linfo("display transfer from fb at %08x to %08x", addrin, addrout);
+
+            u32 topscreenfb = *(u32*) GSPMEM(0x208);
+            u32 bottomscreenfb = *(u32*) GSPMEM(0x248);
+
+            if (addrout == topscreenfb) {
+                gpu_set_fb_top(&s->gpu, addrin);
+            } else if (addrout == bottomscreenfb) {
+                gpu_set_fb_bot(&s->gpu, addrin);
+            }
+
             gsp_handle_event(s, GSPEVENT_PPF);
             break;
         }

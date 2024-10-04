@@ -56,6 +56,8 @@ typedef struct _KProcess {
     u32 used_memory;
 } KProcess;
 
+typedef void (*KEventCallback)(HLE3DS*, u32);
+
 typedef struct {
     KObject hdr;
 
@@ -63,6 +65,8 @@ typedef struct {
     bool sticky;
 
     KListNode* waiting_thrds;
+    
+    KEventCallback callback;
 } KEvent;
 
 typedef struct {

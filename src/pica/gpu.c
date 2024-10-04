@@ -38,6 +38,57 @@ u32 f31tof32(u32 i) {
     return i;
 }
 
+void gpu_reset_fbs(GPU* gpu) {
+    for (int i = 0; i < 2; i++) {
+        gpu->fbs[i].paddr = -1;
+    }
+}
+
+void gpu_set_fb_cur(GPU* gpu, u32 paddr) {
+    linfo("cur fb to %08x", paddr);
+    int newfb = -1;
+    for (int i = 0; i < 2; i++) {
+        if (gpu->fbs[i].paddr == paddr) {
+            newfb = i;
+            break;
+        }
+        if (gpu->fbs[i].paddr == -1) {
+            gpu->fbs[i].paddr = paddr;
+            newfb = i;
+            break;
+        }
+    }
+    if (newfb < 0) {
+        lerror("using more than 2 fbs %08x %08x", gpu->fbs[0].paddr,
+               gpu->fbs[1].paddr);
+        return;
+    }
+    if (newfb == gpu->cur_fb) return;
+    gpu->cur_fb = newfb;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, gpu->gl.fbs[newfb].fbo);
+}
+
+void gpu_set_fb_top(GPU* gpu, u32 paddr) {
+    linfo("top fb to %08x", paddr);
+    for (int i = 0; i < 2; i++) {
+        if (gpu->fbs[i].paddr == paddr) {
+            gpu->gl.fb_top = i;
+            break;
+        }
+    }
+}
+
+void gpu_set_fb_bot(GPU* gpu, u32 paddr) {
+    linfo("bot fb to %08x", paddr);
+    for (int i = 0; i < 2; i++) {
+        if (gpu->fbs[i].paddr == paddr) {
+            gpu->gl.fb_bot = i;
+            break;
+        }
+    }
+}
+
 void gpu_clear_fb(GPU* gpu, u32 color) {
     glClearColor((color >> 24) / 256.f, ((color >> 16) & 0xff) / 256.f,
                  ((color >> 8) & 0xff) / 256.f, (color & 0xff) / 256.f);
@@ -129,6 +180,10 @@ void gpu_write_internalreg(GPU* gpu, u16 id, u32 param, u32 mask) {
             gpu->io.w[id] &= ~mask;
             gpu->io.w[id] |= param & mask;
             break;
+    }
+    if (id == GPUREG(fb.colorbuffer_loc)) {
+        linfo("colorbuf %08x", gpu->io.fb.colorbuffer_loc << 3);
+        gpu_set_fb_cur(gpu, gpu->io.fb.colorbuffer_loc << 3);
     }
 }
 
@@ -238,7 +293,7 @@ void gpu_drawarrays(GPU* gpu) {
 
 void gpu_drawelements(GPU* gpu) {
     linfo("drawing elements nverts=%d primmode=%d", gpu->io.geom.nverts,
-             gpu->io.geom.prim_config.mode);
+          gpu->io.geom.prim_config.mode);
     int minind = 0xffff, maxind = 0;
     void* indexbuf = PTR(gpu->io.geom.attr_base * 8 + gpu->io.geom.indexbufoff);
     for (int i = 0; i < gpu->io.geom.nverts; i++) {

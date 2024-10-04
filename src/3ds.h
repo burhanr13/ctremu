@@ -16,6 +16,7 @@
 #define FPS 60
 
 #define SCREEN_WIDTH 400
+#define SCREEN_WIDTH_BOT 320
 #define SCREEN_HEIGHT 240
 
 typedef struct _3DS {
@@ -61,7 +62,8 @@ typedef struct _3DS {
 
 #define VRAMBASE 0x1f000000
 
-#define DSPMEM 0x1ff00000
+#define DSPMEM 0x1ff50000
+#define DSPMEMSIZE BIT(15)
 #define DSPBUFBIT BIT(17)
 
 #define CONFIG_MEM 0x1ff80000

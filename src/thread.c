@@ -121,6 +121,7 @@ void event_signal(HLE3DS* s, KEvent* ev) {
         thread_wakeup((KThread*) (*cur)->key, &ev->hdr);
         klist_remove(cur);
     }
+    if (ev->callback) ev->callback(s, 0);
     thread_reschedule(s);
     if (ev->sticky) ev->signal = true;
 }

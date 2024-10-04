@@ -91,12 +91,12 @@ void update_input(HLE3DS* s) {
     const Uint8* keys = SDL_GetKeyboardState(NULL);
 
     PadState btn;
-    btn.a = keys[SDL_SCANCODE_PERIOD];
-    btn.b = keys[SDL_SCANCODE_COMMA];
-    btn.x = keys[SDL_SCANCODE_L];
-    btn.y = keys[SDL_SCANCODE_K];
-    btn.l = keys[SDL_SCANCODE_SEMICOLON];
-    btn.r = keys[SDL_SCANCODE_SLASH];
+    btn.a = keys[SDL_SCANCODE_L];
+    btn.b = keys[SDL_SCANCODE_K];
+    btn.x = keys[SDL_SCANCODE_O];
+    btn.y = keys[SDL_SCANCODE_I];
+    btn.l = keys[SDL_SCANCODE_Q];
+    btn.r = keys[SDL_SCANCODE_P];
     btn.start = keys[SDL_SCANCODE_RETURN];
     btn.select = keys[SDL_SCANCODE_RSHIFT];
     btn.up = keys[SDL_SCANCODE_UP];
