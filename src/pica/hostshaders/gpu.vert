@@ -9,6 +9,10 @@ layout (location=4) in vec2 a_texcoord2;
 layout (location=5) in vec4 a_normquat;
 layout (location=6) in vec3 a_view;
 
+uniform bool freecam;
+uniform mat4 freecam_view;
+uniform mat4 freecam_proj;
+
 out vec4 color;
 out vec2 texcoord0;
 out vec2 texcoord1;
@@ -17,7 +21,11 @@ out vec4 normquat;
 out vec3 view;
 
 void main() {
-    gl_Position = a_pos;
+    if (freecam) {
+        gl_Position = freecam_proj * freecam_view * vec4(-view, 1);
+    } else {
+        gl_Position = a_pos;
+    }
     
     color = a_color;
     texcoord0 = a_texcoord0;

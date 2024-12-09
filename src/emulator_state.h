@@ -1,6 +1,8 @@
 #ifndef EMULATOR_STATE_H
 #define EMULATOR_STATE_H
 
+#include <cglm/cglm.h>
+
 #include "3ds.h"
 
 typedef struct {
@@ -17,6 +19,10 @@ typedef struct {
     HLE3DS system;
 
     int videoscale;
+
+    bool freecam;
+    mat4 freecam_mtx;
+    mat4 freecam_projmtx;
 
 } EmulatorState;
 

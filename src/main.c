@@ -91,6 +91,7 @@ int main(int argc, char** argv) {
         }
 
         update_input(&ctremu.system, controller);
+        update_input_freecam();
 
         if (!ctremu.uncap) {
             cur_time = SDL_GetPerformanceCounter();

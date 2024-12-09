@@ -18,4 +18,6 @@ void hotkey_press(SDL_KeyCode key);
 
 void update_input(HLE3DS* s, SDL_GameController* controller);
 
+void update_input_freecam();
+
 #endif
