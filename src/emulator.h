@@ -1,23 +1,42 @@
 #ifndef EMULATOR_H
 #define EMULATOR_H
 
-#include <SDL2/SDL.h>
+#include <cglm/cglm.h>
 
 #include "common.h"
-#include "emulator_state.h"
+
+#include "3ds.h"
+
+typedef struct {
+    char* romfile;
+    char* romfilenodir;
+    char* romfilenoext;
+
+    bool initialized;
+    bool running;
+    bool uncap;
+    bool pause;
+    bool mute;
+
+    E3DS system;
+
+    int videoscale;
+
+    bool freecam;
+    mat4 freecam_mtx;
+    mat4 freecam_projmtx;
+
+} EmulatorState;
+
+extern EmulatorState ctremu;
 
 #define EMUNAME "Tanuki3DS"
+
+void emulator_read_args(int argc, char** argv);
 
 int emulator_init(int argc, char** argv);
 void emulator_quit();
 
 void emulator_reset();
-
-void read_args(int argc, char** argv);
-void hotkey_press(SDL_KeyCode key);
-
-void update_input(HLE3DS* s, SDL_GameController* controller);
-
-void update_input_freecam();
 
 #endif
