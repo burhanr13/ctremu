@@ -18,6 +18,10 @@ void hotkey_press(SDL_KeyCode key) {
         case SDLK_F5:
             ctremu.pause = !ctremu.pause;
             break;
+        case SDLK_F7:
+            ctremu.freecam = !ctremu.freecam;
+            glm_mat4_identity(ctremu.freecam_mtx);
+            break;
         case SDLK_TAB:
             ctremu.uncap = !ctremu.uncap;
             break;
@@ -29,23 +33,27 @@ void hotkey_press(SDL_KeyCode key) {
 void update_input(E3DS* s, SDL_GameController* controller) {
     const Uint8* keys = SDL_GetKeyboardState(NULL);
 
-    PadState btn;
-    btn.a = keys[SDL_SCANCODE_L];
-    btn.b = keys[SDL_SCANCODE_K];
-    btn.x = keys[SDL_SCANCODE_O];
-    btn.y = keys[SDL_SCANCODE_I];
-    btn.l = keys[SDL_SCANCODE_Q];
-    btn.r = keys[SDL_SCANCODE_P];
-    btn.start = keys[SDL_SCANCODE_RETURN];
-    btn.select = keys[SDL_SCANCODE_RSHIFT];
-    btn.up = keys[SDL_SCANCODE_UP];
-    btn.down = keys[SDL_SCANCODE_DOWN];
-    btn.left = keys[SDL_SCANCODE_LEFT];
-    btn.right = keys[SDL_SCANCODE_RIGHT];
+    PadState btn = {};
+    int cx = 0;
+    int cy = 0;
 
-    int cx = (keys[SDL_SCANCODE_D] - keys[SDL_SCANCODE_A]) * INT16_MAX;
-    int cy = (keys[SDL_SCANCODE_W] - keys[SDL_SCANCODE_S]) * INT16_MAX;
+    if (!ctremu.freecam) {
+        btn.a = keys[SDL_SCANCODE_L];
+        btn.b = keys[SDL_SCANCODE_K];
+        btn.x = keys[SDL_SCANCODE_O];
+        btn.y = keys[SDL_SCANCODE_I];
+        btn.l = keys[SDL_SCANCODE_Q];
+        btn.r = keys[SDL_SCANCODE_P];
+        btn.start = keys[SDL_SCANCODE_RETURN];
+        btn.select = keys[SDL_SCANCODE_RSHIFT];
+        btn.up = keys[SDL_SCANCODE_UP];
+        btn.down = keys[SDL_SCANCODE_DOWN];
+        btn.left = keys[SDL_SCANCODE_LEFT];
+        btn.right = keys[SDL_SCANCODE_RIGHT];
 
+        cx = (keys[SDL_SCANCODE_D] - keys[SDL_SCANCODE_A]) * INT16_MAX;
+        cy = (keys[SDL_SCANCODE_W] - keys[SDL_SCANCODE_S]) * INT16_MAX;
+    }
     if (controller) {
         btn.a |=
             SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B);
@@ -103,6 +111,71 @@ void update_input(E3DS* s, SDL_GameController* controller) {
     } else {
         hid_update_touch(s, 0, 0, false);
     }
+}
+
+#define TRANSLATE_SPEED 5.0
+#define ROTATE_SPEED 0.02
+
+void update_input_freecam() {
+    glUseProgram(ctremu.system.gpu.gl.gpuprogram);
+    glUniform1i(
+        glGetUniformLocation(ctremu.system.gpu.gl.gpuprogram, "freecam"),
+        ctremu.freecam);
+
+    if (!ctremu.freecam) return;
+
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
+
+    float speed = TRANSLATE_SPEED;
+    if (keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT]) speed /= 20;
+
+    mat4 m;
+
+    vec3 t = {};
+    mat4 r = GLM_MAT4_IDENTITY_INIT;
+
+    if (keys[SDL_SCANCODE_E]) {
+        t[0] = -speed;
+    }
+    if (keys[SDL_SCANCODE_Q]) {
+        t[0] = speed;
+    }
+    if (keys[SDL_SCANCODE_DOWN]) {
+        glm_rotate_make(r, -ROTATE_SPEED, GLM_YUP);
+    }
+    if (keys[SDL_SCANCODE_UP]) {
+        glm_rotate_make(r, ROTATE_SPEED, GLM_YUP);
+    }
+    if (keys[SDL_SCANCODE_A]) {
+        t[1] = -speed;
+    }
+    if (keys[SDL_SCANCODE_D]) {
+        t[1] = speed;
+    }
+    if (keys[SDL_SCANCODE_LEFT]) {
+        glm_rotate_make(r, -ROTATE_SPEED, GLM_XUP);
+    }
+    if (keys[SDL_SCANCODE_RIGHT]) {
+        glm_rotate_make(r, ROTATE_SPEED, GLM_XUP);
+    }
+    if (keys[SDL_SCANCODE_W]) {
+        t[2] = speed;
+    }
+    if (keys[SDL_SCANCODE_S]) {
+        t[2] = -speed;
+    }
+
+    glm_translate_make(m, t);
+    glm_mat4_mul(m, ctremu.freecam_mtx, ctremu.freecam_mtx);
+    glm_mat4_mul(r, ctremu.freecam_mtx, ctremu.freecam_mtx);
+    glm_perspective(glm_rad(90), (float) SCREEN_HEIGHT / SCREEN_WIDTH, 0.1,
+                    1000, ctremu.freecam_projmtx);
+    glUniformMatrix4fv(
+        glGetUniformLocation(ctremu.system.gpu.gl.gpuprogram, "freecam_view"),
+        1, false, ctremu.freecam_mtx[0]);
+    glUniformMatrix4fv(
+        glGetUniformLocation(ctremu.system.gpu.gl.gpuprogram, "freecam_proj"),
+        1, false, ctremu.freecam_projmtx[0]);
 }
 
 int main(int argc, char** argv) {
