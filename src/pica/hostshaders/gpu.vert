@@ -22,7 +22,7 @@ out vec3 view;
 
 void main() {
     if (freecam) {
-        gl_Position = freecam_proj * freecam_view * vec4(-view, 1);
+        gl_Position = freecam_proj * freecam_view * vec4(-a_view, 1);
     } else {
         gl_Position = a_pos;
     }
