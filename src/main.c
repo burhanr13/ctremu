@@ -168,8 +168,8 @@ void update_input_freecam() {
     glm_translate_make(m, t);
     glm_mat4_mul(m, ctremu.freecam_mtx, ctremu.freecam_mtx);
     glm_mat4_mul(r, ctremu.freecam_mtx, ctremu.freecam_mtx);
-    glm_perspective(glm_rad(90), (float) SCREEN_HEIGHT / SCREEN_WIDTH, 0.1,
-                    1000, ctremu.freecam_projmtx);
+    glm_perspective(glm_rad(70), (float) SCREEN_HEIGHT / SCREEN_WIDTH, 0.1,
+                    10000, ctremu.freecam_projmtx);
     glUniformMatrix4fv(
         glGetUniformLocation(ctremu.system.gpu.gl.gpuprogram, "freecam_view"),
         1, false, ctremu.freecam_mtx[0]);
